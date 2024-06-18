@@ -2,9 +2,9 @@
 
 # A projection mapped interactive climbing wall system
 
-<img src="https://github.com/oriolxi/Virtual-Boulder/blob/main/docs/wall_preview.png?raw=true" alt="drawing" width="600"/>
+<img src="https://github.com/oriolxi/Virtual-Boulder/blob/main/docs/wall_preview.jpg?raw=true" alt="drawing" width="600"/>
 
-work in progress...
+*work in progress...*
 
 ## Installation
 
