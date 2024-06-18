@@ -1,4 +1,4 @@
-![alt text](https://github.com/oriolxi/Virtual-Boulder/blob/main/virtual_boulder.png?raw=true)
-A projection mapped interactive climbing wall system
+<img src="https://github.com/oriolxi/Virtual-Boulder/blob/main/virtual_boulder.png?raw=true" alt="drawing" width="600"/>
 
-## work in progress...
+## A projection mapped interactive climbing wall system
+work in progress...
