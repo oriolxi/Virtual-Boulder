@@ -1,6 +1,8 @@
 # Files to ignore by git change tracker
 
+# macOS Files
 .DS_Store
+Icon?
 
 # Cache files
 *.pyc

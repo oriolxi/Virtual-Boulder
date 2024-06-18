@@ -26,10 +26,8 @@ class MMposeTrack(QThread):
     def __init__(self):
         super().__init__()
         self.mmpose_model = init_model(
-            #config='models/configs/rtmo-s_8xb32-600e_body7-640x640.py',
-            #checkpoint='models/rtmo-s_8xb32-600e_body7-640x640-dac2bf74_20231211.pth',
-            config='models/configs/rtmpose-l_8xb256-420e_aic-coco-384x288.py',
-            checkpoint='models/rtmpose-l_simcc-aic-coco_pt-aic-coco_420e-384x288-97d6cb0f_20230228.pth',
+            config='models/configs/rtmo-s_8xb32-600e_body7-640x640.py',
+            checkpoint='models/rtmo-s_8xb32-600e_body7-640x640-dac2bf74_20231211.pth',
             device='cpu')
         self.mmpose_visualizer = FastVisualizer(metainfo=self.mmpose_model.dataset_meta, radius=10, line_width=6, kpt_thr=0.5)
 
