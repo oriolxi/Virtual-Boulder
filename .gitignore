@@ -1,0 +1,6 @@
+# Files to ignore by git change tracker
+
+.DS_Store
+
+# Cache files
+*.pyc
