@@ -18,10 +18,9 @@ class Surface():
         self.w_projector = None #size of the projection image
         self.h_projector = None
         
-        self.m = [[0,0], [0,self.max_regularized_size[1]-1], [self.max_regularized_size[0]-1,self.max_regularized_size[1]-1], [self.max_regularized_size[0]-1,0]]
-        self.map_regularized = self.m.copy() #list of 4 points that delimit the surface in the regularized image
-        self.w_regularized = self.max_regularized_size[0] #size of the regularized surface image
-        self.h_regularized = self.max_regularized_size[1]
+        self.map_regularized = [] #list of 4 points that delimit the surface in the regularized image
+        self.w_regularized = None #size of the regularized surface image
+        self.h_regularized = None
 
         self.homography_camera = None #homography that goes from camera image -> regularized image
         self.homography_projector = None #homography that goes from regularized image -> projected image
@@ -33,35 +32,8 @@ class Surface():
         self.w_camera = w
         self.h_camera = h
 
-        if self.map_camera != [] and self.map_regularized != self.m:
-            h = cv2.getPerspectiveTransform(np.array(self.map_camera, dtype=np.float32), np.array(self.map_regularized, dtype=np.float32))
-            pts = cv2.perspectiveTransform(np.array([algebra.polarSort(m)], dtype=np.float32), h)
-            pts_translated = algebra.translatePtsPositive(pts)
-            pts_scaled = algebra.scalePtsToLimits(pts_translated, self.max_regularized_size)
-            bb = algebra.get2DBoundingBox(pts_scaled[0])
-
-            self.w_regularized = int(bb[0])
-            self.h_regularized = int(bb[1])
-            
-            self.map_regularized = [[int(x), int(y)] for x, y in pts_scaled[0]]
-            self.map_regularized = algebra.polarSort(self.map_regularized)
-
         self.map_camera = [[int(x), int(y)] for x, y in m]
         self.map_camera = algebra.polarSort(self.map_camera)
-
-        pts_src = np.array(self.map_camera, dtype=np.float32)
-        pts_dst = np.array(self.map_regularized, dtype=np.float32)
-
-        self.homography_camera = cv2.getPerspectiveTransform(pts_src, pts_dst)
-
-        if self.homography_camproj is not None:
-            src = np.array([self.map_camera], dtype=np.float32)
-            self.map_projector =  cv2.perspectiveTransform(src, self.homography_camproj)
-            
-            pts_src = np.array(self.map_regularized, dtype=np.float32)
-            pts_dst = np.array(self.map_projector, dtype=np.float32)
-        
-            self.homography_projector = cv2.getPerspectiveTransform(pts_src, pts_dst)
 
     def setProjectorParametres(self, m, w, h):
         self.w_projector = w
@@ -69,11 +41,6 @@ class Surface():
 
         self.map_projector = [[int(x), int(y)] for x, y in m]
         self.map_projector = algebra.polarSort(self.map_projector)
-
-        pts_src = np.array(self.map_regularized, dtype=np.float32)
-        pts_dst = np.array(self.map_projector, dtype=np.float32)
-        
-        self.homography_projector = cv2.getPerspectiveTransform(pts_src, pts_dst)
 
         pts_src = np.array(self.map_camera, dtype=np.float32)
         pts_dst = np.array(self.map_projector, dtype=np.float32)
@@ -87,13 +54,13 @@ class Surface():
         self.map_regularized = [[int(x), int(y)] for x, y in m]
         self.map_regularized = algebra.polarSort(self.map_regularized)
 
-        #find the final homography that transforms surface plane in camera image to regularized image
+        #find the homography that transforms surface plane in camera image to regularized image
         pts_src = np.array(self.map_camera, dtype=np.float32)
         pts_dst = np.array(self.map_regularized, dtype=np.float32)
 
         self.homography_camera = cv2.getPerspectiveTransform(pts_src, pts_dst)
 
-        #find the final homography that transforms regularized image into projector plane        
+        #find the homography that transforms regularized image into projector plane        
         pts_src = np.array(self.map_regularized, dtype=np.float32)
         pts_dst = np.array(self.map_projector, dtype=np.float32)
 
@@ -126,10 +93,22 @@ class Surface():
     def getMaxRegularizedsize(self):
         return self.max_regularized_size
 
+    def getCameraMask(self):
+        mask = np.zeros(shape=(self.h_camera, self.w_camera, 3), dtype=np.uint8)
+        polygon = np.array(self.map_camera, dtype=np.int32)
+        cv2.fillPoly(mask, pts=[polygon], color=(255, 255, 255))
+        return mask
+
+    def getProjectorMask(self):
+        mask = np.zeros(shape=(self.h_projector, self.w_projector, 3), dtype=np.uint8)
+        polygon = np.array(self.map_projector, dtype=np.int32)
+        cv2.fillPoly(mask, pts=[polygon], color=(255, 255, 255))
+        return mask
+
     def getRegularizedMask(self):
-        pts_dst = np.array(self.map_regularized, dtype=np.int32)
         mask = np.zeros(shape=(self.h_regularized, self.w_regularized, 3), dtype=np.uint8)
-        cv2.fillPoly(mask, pts=[pts_dst], color=(255, 255, 255))
+        polygon = np.array(self.map_regularized, dtype=np.int32)
+        cv2.fillPoly(mask, pts=[polygon], color=(255, 255, 255))
         return mask
 
     def getHolds(self):

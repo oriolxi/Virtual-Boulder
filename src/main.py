@@ -32,7 +32,7 @@ class MainWindow(QMainWindow):
     boulder_creator = None #created and destroyed as needed
 
     file_test_image = "img/via1.jpg"
-    file_calibration_image = "img/calibration_rainbow.png"
+    file_feature_match_pattern = "img/calibration_rainbow.png"
 
     def __init__(self):
         super().__init__()
@@ -53,14 +53,14 @@ class MainWindow(QMainWindow):
         self.boulder = []
 
         self.setImagePreview(self.file_test_image, self.label_testImage)
-        self.setImagePreview(self.file_calibration_image, self.label_calibrationImage)
+        self.setImagePreview(self.file_feature_match_pattern, self.label_calibrationImage)
 
         self.render_previews = False
         self.tracker_aruco = ArucoTrack()
         self.tracker_mmpose = PoseTrack()
 
-        self.calibration_image = None #CVimage
-        self.calibration_reference_image = None #CVimage
+        self.feature_match_pattern = None #CVimage
+        self.feature_match_frame = None #CVimage
         self.reference_image = None #CVimage
         self.reference_image_reg = None #CVimage
         self.feature_matches_image = None #CVimage
@@ -74,12 +74,12 @@ class MainWindow(QMainWindow):
         self.__setUpGui()
 
     def __setUpGui(self): 
-        self.btn_surface_mCal.clicked.connect(self.startSurfaceManualSelection)
+        self.btn_surface_mCal.clicked.connect(self.startCameraSurfaceDetection)
 
-        self.btn_screen1_mCal.clicked.connect(self.startProjectorManualCalibration)
-        self.btn_screen1_aCal.clicked.connect(self.startProjectorAutoCalibration)
+        self.btn_screen1_mCal.clicked.connect(self.startManualProjectorSurfaceDetection)
+        self.btn_screen1_aCal.clicked.connect(self.startAutoProjectorSurfaceDetection)
 
-        self.btn_camera_aCal.clicked.connect(self.startCameraAutoCalibration)
+        self.btn_camera_aCal.clicked.connect(self.startFrontViewSurfaceDetection)
 
         self.btn_camera_preview.clicked.connect(self.startCameraPreview)
         self.cBox_camera.addItems([i.description() for i in self.available_cameras])
@@ -148,36 +148,7 @@ class MainWindow(QMainWindow):
         QApplication.quit()
 
 #   ---------------------------------------------------- WORK AREA ----------------------------------------------------  #
-    def createBoulder(self):
-        if self.reference_image_reg is None: return
-        self.boulder_creator = BoulderCreator(self.available_screens[self.cBox_controlScreen.currentIndex()], False, self.reference_image_reg, self.surface.getHolds(), self.boulder)
-        self.startSelectionThread(self.boulder_creator, close_slots=[], done_slots=[self.updateBoulder], click_slots=[])
 
-    def updateBoulder(self, b):
-        self.boulder = b
-        if self.boulder_creator:  self.boulder_creator.deleteLater()
-
-    def startBoulder(self):
-        if self.surface.getCameraMap() == []: return
-        if self.surface.getProjectorMap() == []: return
-        if self.boulder == []: return
-
-        self.boulder_traker = InteractiveBoulderTrack(self.surface, self.boulder)
-        self.boulder_traker.startBoulder()
-
-        self.tracker_mmpose.setRenderPreview(self.render_previews)
-        self.boulder_traker.setRenderPreview(self.render_previews)
-        if self.render_previews:
-            self.startWindowThread(thread=self.camera_preview, close_slots=[self.projector.close])
-        
-        self.camera_preview.setImage(self.reference_image_reg)
-        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_mmpose.detect])
-        self.startTrackerThread(self.tracker_mmpose, preview_slots=[], detection_slots=[], data_slots=[self.boulder_traker.detect])
-        self.startTrackerThread(self.boulder_traker, preview_slots=[self.camera_preview.setImageWithResize], detection_slots=[self.projector.setImageWithoutResize], data_slots=[])
-        self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop])
-
-    def deleteBoulder(self):
-        self.boulder = []
 
 #   ---------------------------------------------------- WORK AREA ----------------------------------------------------  #
 
@@ -241,10 +212,15 @@ class MainWindow(QMainWindow):
     def openCalibrationImage(self):
         path = self.openImage()
         if path is None: return 
-        self.file_calibration_image = path
-        self.setImagePreview(self.file_calibration_image, self.label_calibrationImage)
+        self.file_feature_match_pattern = path
+        self.setImagePreview(self.file_feature_match_pattern, self.label_calibrationImage)
 
     def updateSurfacePreview(self):
+        if self.surface.getCameraHomography() is None:
+            reference_image_masked = cv2.bitwise_and(self.reference_image, self.surface.getCameraMask())
+            self.setImagePreview(reference_image_masked, self.label_holdLabels)
+            return
+
         self.reference_image_reg = cv2.warpPerspective(self.reference_image, self.surface.getCameraHomography(), self.surface.getRegularizedSize())
         self.reference_image_reg = cv2.bitwise_and(self.reference_image_reg, self.surface.getRegularizedMask())
         self.updateTableRegularizedSize(self.surface.getRegularizedSize())
@@ -314,78 +290,15 @@ class MainWindow(QMainWindow):
         self.projector.setImage(qImg)
         self.projector.start()
 
-#  LIVE VIDEO ANALISIS  ----------------------------------------------------  #
-    def previewArucoTracker(self):
-        self.camera_preview.setImage(self.reference_image_reg)
-        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_aruco.detect])
-        self.startTrackerThread(self.tracker_aruco, preview_slots=[self.camera_preview.setImageWithResize], detection_slots=[], data_slots=[])
-        self.startWindowThread(thread=self.camera_preview, close_slots=[self.camera.stop])
-
-    def startArucoTracker(self):
-        if self.surface.getCameraMap() == []: return
-        if self.surface.getProjectorMap() == []: return
-
-        self.perspective_warper = PerspectiveWarper(self.surface.getCameraProjectorHomography(), self.surface.getProjectorSize())
-
-        self.tracker_aruco.setRenderPreview(self.render_previews)
-        if self.render_previews: 
-            self.startWindowThread(thread=self.camera_preview, close_slots=[self.projector.close])
-
-        self.camera_preview.setImage(self.reference_image_reg)
-        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_aruco.detect])
-        self.startTrackerThread(self.tracker_aruco, preview_slots=[self.camera_preview.setImageWithResize], detection_slots=[self.perspective_warper.apply], data_slots=[])
-        self.perspective_warper.signal_done.connect(self.projector.setImageWithoutResize)
-        self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop])
-
-    def previewPoseTracker(self):
-        self.tracker_mmpose.setRenderPreview(True)
-        self.camera_preview.setImage(self.reference_image_reg)
-        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_mmpose.detect])
-        self.startTrackerThread(self.tracker_mmpose, preview_slots=[self.camera_preview.setImageWithResize], detection_slots=[], data_slots=[])
-        self.startWindowThread(thread=self.camera_preview, close_slots=[self.camera.stop])
-
-    def startPoseTracker(self):
-        if self.surface.getCameraMap() == []: return
-        if self.surface.getProjectorMap() == []: return
-
-        self.perspective_warper = PerspectiveWarper(self.surface.getCameraProjectorHomography(), self.surface.getProjectorSize())
-
-        self.tracker_mmpose.setRenderPreview(self.render_previews)
-        if self.render_previews: 
-            self.startWindowThread(thread=self.camera_preview, close_slots=[self.projector.close])
-
-        self.camera_preview.setImage(self.reference_image_reg)
-        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_mmpose.detect])
-        self.startTrackerThread(self.tracker_mmpose, preview_slots=[self.camera_preview.setImageWithResize], detection_slots=[self.perspective_warper.apply], data_slots=[])
-        self.perspective_warper.signal_done.connect(self.projector.setImageWithoutResize)
-        self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop])
-
-    def startHoldInteraction(self):
-        if self.surface.getCameraMap() == []: return
-        if self.surface.getProjectorMap() == []: return
-
-        self.hold_interaction_traker = HoldInteractionTrack(self.surface)
-
-        self.tracker_mmpose.setRenderPreview(self.render_previews)
-        self.hold_interaction_traker.setRenderPreview(self.render_previews)
-        if self.render_previews:
-            self.startWindowThread(thread=self.camera_preview, close_slots=[self.projector.close])
-        
-        self.camera_preview.setImage(self.reference_image_reg)
-        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_mmpose.detect])
-        self.startTrackerThread(self.tracker_mmpose, preview_slots=[], detection_slots=[], data_slots=[self.hold_interaction_traker.detect])
-        self.startTrackerThread(self.hold_interaction_traker, preview_slots=[self.camera_preview.setImageWithResize], detection_slots=[self.projector.setImageWithoutResize], data_slots=[])
-        self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop])
-
 #  SURFACE CALIBRATION  ----------------------------------------------------  #
-    def startSurfaceManualSelection(self): 
+    def startCameraSurfaceDetection(self): 
         self.projector.setImage(None)
         self.camera_calibrator = ProjectionAreaSelection(self.available_screens[self.cBox_controlScreen.currentIndex()], False)
         self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.camera_calibrator.setImage])
-        self.startSelectionThread(self.camera_calibrator, close_slots=[self.projector.stop], done_slots=[self.updateSurfaceSelection], click_slots=[self.camera.stop])
+        self.startSelectionThread(self.camera_calibrator, close_slots=[self.projector.stop], done_slots=[self.updateCameraSurfaceSelection], click_slots=[self.camera.stop])
         self.startWindowThread(thread=self.projector, close_slots=[])
 
-    def updateSurfaceSelection(self, w, h, p): 
+    def updateCameraSurfaceSelection(self, w, h, p): 
         self.surface.setCameraParametres(p,w,h)
         self.updateCalibrationTable(self.table_surface_calibration, self.surface.getCameraMap())
         self.reference_image = self.camera.getLastFrame()
@@ -393,57 +306,51 @@ class MainWindow(QMainWindow):
         if self.camera_calibrator:  self.camera_calibrator.deleteLater()
         self.camera_calibrator = None
 
-    def startProjectorManualCalibration(self): 
+    def startManualProjectorSurfaceDetection(self): 
         self.projector_calibrator = ProjectionAreaSelection(self.available_screens[self.cBox_screen1.currentIndex()], True)
-        self.startSelectionThread(self.projector_calibrator, close_slots=[], done_slots=[self.updateProjectorCalibration], click_slots=[])
+        self.startSelectionThread(self.projector_calibrator, close_slots=[], done_slots=[self.updateProjectorSurfaceSelection], click_slots=[])
 
-    def startProjectorAutoCalibration(self): 
+    def startAutoProjectorSurfaceDetection(self): 
         if self.surface.getCameraMap() == []: return
 
-        img = cv2.imread(self.file_calibration_image, cv2.IMREAD_COLOR)
-        self.calibration_image = img[0:self.projector.getSize().height(),0:self.projector.getSize().width()].copy()
-        self.projector.setImage(util.QimageFromCVimage(self.calibration_image))
+        img = cv2.imread(self.file_feature_match_pattern, cv2.IMREAD_COLOR)
+        self.feature_match_pattern = img[0:self.projector.getSize().height(),0:self.projector.getSize().width()].copy()
+        self.projector.setImage(util.QimageFromCVimage(self.feature_match_pattern))
 
         self.startWindowThread(thread=self.projector, close_slots=[])
         self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.camera_preview.setImage])
-        self.startWindowThread(thread=self.camera_preview, close_slots=[self.camera.stop, self.projector.stop, self.computeProjectorAutoCalibration])
+        self.startWindowThread(thread=self.camera_preview, close_slots=[self.camera.stop, self.projector.stop, self.helperAutoProjectorSurfaceSelection])
 
-    def computeProjectorAutoCalibration(self): 
-        self.calibration_reference_image = self.camera.getLastFrame()
+    def helperAutoProjectorSurfaceSelection(self): 
+        self.feature_match_frame = cv2.bitwise_and(self.camera.getLastFrame(), self.surface.getCameraMask())
 
-        pts_src = np.array(self.surface.getCameraMap(), dtype=np.float32)
-        pts_dst = np.array(self.surface.getRegularizedMap(), dtype=np.float32)
-        h = cv2.getPerspectiveTransform(pts_src, pts_dst)
-
-        regImg = cv2.warpPerspective(self.calibration_reference_image, h, self.surface.getMaxRegularizedsize())
-        pts, self.feature_matches_image = feature_match.featureMatching(regImg, self.calibration_image)
+        H, self.feature_matches_image = feature_match.featureMatching(self.feature_match_frame, self.feature_match_pattern)
         
-        if pts == []: return
-        self.updateProjectorCalibration(self.calibration_image.shape[1], self.calibration_image.shape[0], pts)
+        if H is None: return
+        pts = cv2.perspectiveTransform(np.array([self.surface.getCameraMap()], dtype=np.float32), H)
 
-    def updateProjectorCalibration(self, w, h, p): 
+        self.updateProjectorSurfaceSelection(self.feature_match_pattern.shape[1], self.feature_match_pattern.shape[0], pts[0])
+
+    def updateProjectorSurfaceSelection(self, w, h, p): 
         self.surface.setProjectorParametres(p,w,h)
         self.updateCalibrationTable(self.table_screen1_calibration, self.surface.getProjectorMap())
         if self.projector_calibrator: self.projector_calibrator.deleteLater()
         self.projector_calibrator = None
 
-    def startCameraAutoCalibration(self):
+    def startFrontViewSurfaceDetection(self):
         if self.surface.getCameraMap() == []: return
         if self.surface.getProjectorMap() == []: return
 
-        img = np.zeros_like(self.reference_image_reg)
-        img.fill(255)
-        regularized = cv2.warpPerspective(img, self.surface.getProjectorHomographyFromSize(img.shape[1],img.shape[0]), self.surface.getProjectorSize())
-        qImg = util.QimageFromCVimage(regularized)
+        mask = self.surface.getProjectorMask()
+        qImg = util.QimageFromCVimage(mask)
         self.projector.setImage(qImg)
-
 
         self.startWindowThread(thread=self.projector, close_slots=[])
         self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_aruco.detect])
         self.startTrackerThread(self.tracker_aruco, preview_slots=[self.camera_preview.setImage], detection_slots=[], data_slots=[])
-        self.startWindowThread(thread=self.camera_preview, close_slots=[self.camera.stop, self.projector.stop, self.updateCameraCalibration])
+        self.startWindowThread(thread=self.camera_preview, close_slots=[self.camera.stop, self.projector.stop, self.updateFrontViewSelection])
 
-    def updateCameraCalibration(self):
+    def updateFrontViewSelection(self):
         W = self.tracker_aruco.detect(self.camera.getLastFrame())[1]
         if W == []: return
 
@@ -505,6 +412,102 @@ class MainWindow(QMainWindow):
         self.dialog = HoldDetectorDialog(self.reference_image_reg)
         self.startGenericThread(self.dialog, self.dialog.signal_done, slots=[self.setHolds])
 
+#  LIVE VIDEO ANALISIS  ----------------------------------------------------  #
+    def previewArucoTracker(self):
+        self.camera_preview.setImage(self.reference_image_reg)
+        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_aruco.detect])
+        self.startTrackerThread(self.tracker_aruco, preview_slots=[self.camera_preview.setImageWithResize], detection_slots=[], data_slots=[])
+        self.startWindowThread(thread=self.camera_preview, close_slots=[self.camera.stop])
+
+    def startArucoTracker(self):
+        if self.surface.getCameraMap() == []: return
+        if self.surface.getProjectorMap() == []: return
+
+        self.perspective_warper = PerspectiveWarper(self.surface.getCameraProjectorHomography(), self.surface.getProjectorSize())
+
+        self.tracker_aruco.setRenderPreview(self.render_previews)
+        if self.render_previews: 
+            self.startWindowThread(thread=self.camera_preview, close_slots=[self.projector.close])
+
+        self.camera_preview.setImage(self.reference_image_reg)
+        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_aruco.detect])
+        self.startTrackerThread(self.tracker_aruco, preview_slots=[self.camera_preview.setImageWithResize], detection_slots=[self.perspective_warper.apply], data_slots=[])
+        self.perspective_warper.signal_done.connect(self.projector.setImageWithoutResize)
+        self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop])
+
+    def previewPoseTracker(self):
+        self.tracker_mmpose.setRenderPreview(True)
+        self.camera_preview.setImage(self.reference_image_reg)
+        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_mmpose.detect])
+        self.startTrackerThread(self.tracker_mmpose, preview_slots=[self.camera_preview.setImageWithResize], detection_slots=[], data_slots=[])
+        self.startWindowThread(thread=self.camera_preview, close_slots=[self.camera.stop])
+
+    def startPoseTracker(self):
+        if self.surface.getCameraMap() == []: return
+        if self.surface.getProjectorMap() == []: return
+
+        self.perspective_warper = PerspectiveWarper(self.surface.getCameraProjectorHomography(), self.surface.getProjectorSize())
+
+        self.tracker_mmpose.setRenderPreview(self.render_previews)
+        if self.render_previews: 
+            self.startWindowThread(thread=self.camera_preview, close_slots=[self.projector.close])
+
+        self.camera_preview.setImage(self.reference_image_reg)
+        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_mmpose.detect])
+        self.startTrackerThread(self.tracker_mmpose, preview_slots=[self.camera_preview.setImageWithResize], detection_slots=[self.perspective_warper.apply], data_slots=[])
+        self.perspective_warper.signal_done.connect(self.projector.setImageWithoutResize)
+        self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop])
+
+# INTERACTIVE EXPERIENCES  ----------------------------------------------------  #
+
+    def startHoldInteraction(self):
+        if self.surface.getCameraMap() == []: return
+        if self.surface.getProjectorMap() == []: return
+
+        self.hold_interaction_traker = HoldInteractionTrack(self.surface)
+
+        self.tracker_mmpose.setRenderPreview(self.render_previews)
+        self.hold_interaction_traker.setRenderPreview(self.render_previews)
+        if self.render_previews:
+            self.startWindowThread(thread=self.camera_preview, close_slots=[self.projector.close])
+        
+        self.camera_preview.setImage(self.reference_image_reg)
+        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_mmpose.detect])
+        self.startTrackerThread(self.tracker_mmpose, preview_slots=[], detection_slots=[], data_slots=[self.hold_interaction_traker.detect])
+        self.startTrackerThread(self.hold_interaction_traker, preview_slots=[self.camera_preview.setImageWithResize], detection_slots=[self.projector.setImageWithoutResize], data_slots=[])
+        self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop])
+
+    def createBoulder(self):
+        if self.reference_image_reg is None: return
+        self.boulder_creator = BoulderCreator(self.available_screens[self.cBox_controlScreen.currentIndex()], False, self.reference_image_reg, self.surface.getHolds(), self.boulder)
+        self.startSelectionThread(self.boulder_creator, close_slots=[], done_slots=[self.updateBoulder], click_slots=[])
+
+    def updateBoulder(self, b):
+        self.boulder = b
+        if self.boulder_creator:  self.boulder_creator.deleteLater()
+
+    def startBoulder(self):
+        if self.surface.getCameraMap() == []: return
+        if self.surface.getProjectorMap() == []: return
+        if self.boulder == []: return
+
+        self.boulder_traker = InteractiveBoulderTrack(self.surface, self.boulder)
+        self.boulder_traker.startBoulder()
+
+        self.tracker_mmpose.setRenderPreview(self.render_previews)
+        self.boulder_traker.setRenderPreview(self.render_previews)
+        if self.render_previews:
+            self.startWindowThread(thread=self.camera_preview, close_slots=[self.projector.close])
+        
+        self.camera_preview.setImage(self.reference_image_reg)
+        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_mmpose.detect])
+        self.startTrackerThread(self.tracker_mmpose, preview_slots=[], detection_slots=[], data_slots=[self.boulder_traker.detect])
+        self.startTrackerThread(self.boulder_traker, preview_slots=[self.camera_preview.setImageWithResize], detection_slots=[self.projector.setImageWithoutResize], data_slots=[])
+        self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop])
+
+    def deleteBoulder(self):
+        self.boulder = []
+
 #  SAVE IMAGES FOR BENCHMARKING  ----------------------------------------------------  #
     def saveReferenceImages(self): 
         directory = QFileDialog.getExistingDirectory(self, "Open Directory","./")
@@ -516,14 +519,14 @@ class MainWindow(QMainWindow):
                     regularized = cv2.bitwise_and(regularized, self.surface.getRegularizedMask())
                     cv2.imwrite(directory + "/reference_img_reg.jpg", regularized)
             
-            if self.calibration_reference_image is not None: 
-                cv2.imwrite(directory + "/calibration_reference_image.jpg", self.calibration_reference_image)
+            if self.feature_match_frame is not None: 
+                cv2.imwrite(directory + "/feature_match_frame.jpg", self.feature_match_frame)
                 if self.surface.getCameraMap() != []:
-                    regularized = cv2.warpPerspective(self.calibration_reference_image, self.surface.getCameraHomography(), self.surface.getRegularizedSize())
-                    cv2.imwrite(directory + "/calibration_reference_image_reg.jpg", regularized)
+                    regularized = cv2.warpPerspective(self.feature_match_frame, self.surface.getCameraHomography(), self.surface.getRegularizedSize())
+                    cv2.imwrite(directory + "/feature_match_frame_reg.jpg", regularized)
 
-            if self.calibration_image is not None: 
-                cv2.imwrite(directory + "/calibration_image.jpg", self.calibration_image)
+            if self.feature_match_pattern is not None: 
+                cv2.imwrite(directory + "/feature_match_pattern.jpg", self.feature_match_pattern)
 
             if self.surface.getProjectorMap() != []:
                 img = np.zeros((self.surface.getRegularizedSize()[1],self.surface.getRegularizedSize()[0],3), dtype=np.uint8)
