@@ -1,8 +1,8 @@
-<img src="https://github.com/oriolxi/Virtual-Boulder/blob/main/docs/virtual_boulder.png?raw=true" alt="drawing" width="600"/>
+<img src="https://github.com/oriolxi/Virtual-Boulder/blob/main/docs/virtual_boulder.png?raw=true" alt="drawing" width="400"/>
 
 # A projection mapped interactive climbing wall system
 
-<img src="https://github.com/oriolxi/Virtual-Boulder/blob/main/docs/wall_preview.jpg?raw=true" alt="drawing" width="600"/>
+<img src="https://github.com/oriolxi/Virtual-Boulder/blob/main/docs/wall_preview.jpg?raw=true" alt="drawing" width="500"/>
 
 *work in progress...*
 
