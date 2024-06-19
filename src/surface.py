@@ -10,15 +10,15 @@ class Surface():
         self.clear()
 
     def clear(self):
-        self.wall_roi_camera = [] # list of 4 points that delimit the climbing wall on the camera image plane
+        self.wall_roi_camera = [] # list of 4 points that delimite the climbing wall on the camera image plane
         self.width_camera = None # size of the camera image
         self.height_camera = None
 
-        self.wall_roi_projector = [] # list of 4 points that delimit the climbing wall on the projector image plane
+        self.wall_roi_projector = [] # list of 4 points that delimite the climbing wall on the projector image plane
         self.width_projector = None # size of the projector image
         self.height_projector = None
         
-        self.wall_roi_surface = [] # list of 4 points that delimit the climbing wall on the surface plane
+        self.wall_roi_surface = [] # list of 4 points that delimite the climbing wall on the surface plane
         self.width_surface = None # size of the surface image (fronto-parallel view)
         self.height_surface = None
 
@@ -52,7 +52,6 @@ class Surface():
 
         self.wall_roi_surface = [[int(x), int(y)] for x, y in roi]
         self.wall_roi_surface = algebra.polarSort(self.wall_roi_surface)
-
 
         pts_src = np.array(self.wall_roi_camera, dtype=np.float32)
         pts_dst = np.array(self.wall_roi_surface, dtype=np.float32)

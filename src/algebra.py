@@ -1,19 +1,37 @@
 import cv2
-import math
 import numpy as np
 
-def isPointInsideRectangle(point, rectangle): #returns True if poiny p = [x,y] is inside of rectangle r = [x,y,w,h]
+# INPUTS:
+#   point = [x,y] coordinates
+#   rectangle = [x,y,width,height] where (x,y) is the rectangle's top-left corner
+# OUTPUTS:
+#   True / False = weather the point is inside or outside the rectangle
+def isPointInsideRectangle(point, rectangle):
     return (rectangle[0] <= point[0] <= rectangle[0] + rectangle[2]) and (rectangle[1] <= point[1] <= rectangle[1] + rectangle[3])
 
-def isCircleTouchingRectangle(rectangle, circle_point, radious): #returns True if circle touches rectangle r = [x,y,w,h]
+# INPUTS:
+#   rectangle = [x,y,width,height] where (x,y) is the rectangle's top-left corner
+#   circle_point = [x,y] coordinates of the circle's center
+#   radious = circle's radious
+# OUTPUTS:
+#   True / False = weather the point touching the rectangle or not. 
+#   -> This includes the cricle fully enclosed inside the rectangle
+def isCircleTouchingRectangle(rectangle, circle_point, radious):
     nearest_x = max(rectangle[0], min(circle_point[0], rectangle[0] + rectangle[2]))
     nearest_y = max(rectangle[1], min(circle_point[1], rectangle[1] + rectangle[3]))
 
     distance = np.linalg.norm(np.subtract(circle_point, [nearest_x, nearest_y]))
     return distance <= radious
 
-def overlapCircleRectangle(rectangle, circle_point, radious, resolution=8): #returns the amount circle overlaped by the rectangle
-    #create grid points within the circle using polar coordinates, this way proximity to the center is favored
+# INPUTS:
+#   rectangle = [x,y,width,height] where (x,y) is the rectangle's top-left corner
+#   circle_point = [x,y] coordinates of the circle's center
+#   radious = circle's radious
+#   resolution = number of samples generated in each coordinate degree of freedom
+# OUTPUTS:
+#   overlap = the amount of the circle that overlapes with the rectangle
+#   -> Estimated using point sampling using polar coordinates
+def overlapCircleRectangle(rectangle, circle_point, radious, resolution=8):
     radious_samples = np.linspace(0, radious, resolution)
     angle_samples = np.linspace(0, np.pi*2, resolution)
     polar_pts = np.array(np.meshgrid(radious_samples, angle_samples)).T.reshape(-1, 2)
@@ -22,7 +40,11 @@ def overlapCircleRectangle(rectangle, circle_point, radious, resolution=8): #ret
     pts_in_rectangle = np.apply_along_axis(isPointInsideRectangle, 1, pts_circle, rectangle=rectangle)
     return np.count_nonzero(pts_in_rectangle) / len(pts_circle)
 
-def polarToCartesian(points): #gets array of polar coordinate pairs [r, w] and returns corresponding array of cartesian pairs[x,y]
+# INPUTS:
+#   points = list of polar coordinates [radious, angle]
+# OUTPUTS:
+#   List of corresponding cartesin coordinates [x,y]
+def polarToCartesian(points):
     x = points[:,0] * np.cos(points[:,1])
     y = points[:,0] * np.sin(points[:,1])
 
@@ -36,6 +58,10 @@ def get2DBoundingBox(points):
     
     return [max_x[0], max_y[1], min_x[0], min_y[1]]
 
+# INPUTS:
+#   points = list of [x,y] points
+# OUTPUTS:
+#   List of [x,y] points translated to the positive x-y axis
 def translatePtsPositive(points):
     bounding_box = get2DBoundingBox(points[0])
 
@@ -45,6 +71,11 @@ def translatePtsPositive(points):
 
     return cv2.perspectiveTransform(points, hT)
 
+# INPUTS:
+#   points = list of [x,y] points
+#   limits = [width, height]
+# OUTPUTS:
+#   List of [x,y] points scaled fit inside the limits specified by [width, height]
 def scalePtsToLimits(points, limits):
     bounding_box = get2DBoundingBox(points[0])
     
@@ -55,6 +86,12 @@ def scalePtsToLimits(points, limits):
     
     return cv2.perspectiveTransform(points, hS)
 
+# INPUTS:
+#   points = list of [x,y] points
+#   pt1 = [x,y] point
+#   pt2 = [x,y] point
+# OUTPUTS:
+#   List of [x,y] points rotated by the angle formed by the line pt1 - pt2 and the x axis
 def rotatePtsToHorizontalLine(points, pt1, pt2):
     ang = np.pi - np.arctan2(pt1[1] - pt2[1], pt1[0] - pt2[0])
 
@@ -66,7 +103,11 @@ def rotatePtsToHorizontalLine(points, pt1, pt2):
 
     return cv2.perspectiveTransform(points, hR)
 
-def polarSort(points): # counteclockwise polar sort from vertical y axis
+# INPUTS:
+#   points = list of [x,y] points
+# OUTPUTS:
+#   List of [x,y] points sorted counteclockwise from the positive y axis by the angle each point forms with the list's centroid.
+def polarSort(points):
     x = np.array([p[0] for p in points])
     y = np.array([p[1] for p in points])
     centroid_x, centroid_y = (sum(x) / len(points), sum(y) / len(points))
