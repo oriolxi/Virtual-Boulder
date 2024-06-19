@@ -47,22 +47,14 @@ class MMposeTracker(QThread):
                         "elbow_R":pred_instances.keypoints[0][8],
                         "elbow_L":pred_instances.keypoints[0][7],
                         "wrist_R":pred_instances.keypoints[0][10],
-                        "wrist_L":pred_instances.keypoints[0][9], 
-                        "knee_R":pred_instances.keypoints[0][14],
-                        "knee_L":pred_instances.keypoints[0][13],
-                        "ankle_R":pred_instances.keypoints[0][16],
-                        "ankle_L":pred_instances.keypoints[0][15],
+                        "wrist_L":pred_instances.keypoints[0][9],
 
                         "shoulder_R_score":pred_instances.keypoint_scores[0][6],
                         "shoulder_L_score":pred_instances.keypoint_scores[0][5],
                         "elbow_R_score":pred_instances.keypoint_scores[0][8],
                         "elbow_L_score":pred_instances.keypoint_scores[0][7],
                         "wrist_R_score":pred_instances.keypoint_scores[0][10],
-                        "wrist_L_score":pred_instances.keypoint_scores[0][9], 
-                        "knee_R_score":pred_instances.keypoint_scores[0][14],
-                        "knee_L_score":pred_instances.keypoint_scores[0][13],
-                        "ankle_R_score":pred_instances.keypoint_scores[0][16],
-                        "ankle_L_score":pred_instances.keypoint_scores[0][15]}
+                        "wrist_L_score":pred_instances.keypoint_scores[0][9]}
 
         preview = frame.copy()
         if self.render_preview:

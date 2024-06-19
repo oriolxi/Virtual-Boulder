@@ -80,9 +80,9 @@ class HoldInteractionTrack(ClimbrTrack):
         interaction = []
         if std < self.min_hand_std:
             holds = np.array(self.surface.getHolds())
-            collisions = np.apply_along_axis(algebra.isCircleTouchingRectangle, 1, holds, circle_p=point, circle_r=radious)
+            collisions = np.apply_along_axis(algebra.isCircleTouchingRectangle, 1, holds, circle_point=point, radious=radious)
             if np.count_nonzero(collisions) > 0:
-                overlaps = np.apply_along_axis(algebra.overlapCircleRectangle, 1, holds[collisions], circle_p=point, circle_r=radious)
+                overlaps = np.apply_along_axis(algebra.overlapCircleRectangle, 1, holds[collisions], circle_point=point, radious=radious)
                 interaction = [ holds[collisions][np.argmax(overlaps)] ]
         return interaction
 

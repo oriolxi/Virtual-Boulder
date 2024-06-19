@@ -2,8 +2,6 @@ import cv2
 import numpy as np
 from PyQt6.QtGui import QImage
 
-# pygount --format=summary --folders-to-skip=models
-
 def QimageFromCVimage(cvImg):
     if cvImg is None: return None
     return QImage(cvImg.data, cvImg.shape[1], cvImg.shape[0], cvImg.strides[0], QImage.Format.Format_BGR888)
