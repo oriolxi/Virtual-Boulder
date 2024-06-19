@@ -4,67 +4,63 @@ import numpy as np
 import algebra
 
 class Surface():
-    max_regularized_size = [1400, 1400]
+    max_surface_size = [1400, 1400] # maximum size the fronto-parallel view image can take
     
     def __init__(self):
         self.clear()
 
     def clear(self):
-        self.map_camera = [] #list of 4 points that delimit the surface in the camera image
-        self.w_camera = None #size of the camera image
-        self.h_camera = None
+        self.wall_roi_camera = [] # list of 4 points that delimit the climbing wall on the camera image plane
+        self.width_camera = None # size of the camera image
+        self.height_camera = None
 
-        self.map_projector = [] #list of 4 points that delimit the surface on the projection image
-        self.w_projector = None #size of the projection image
-        self.h_projector = None
+        self.wall_roi_projector = [] # list of 4 points that delimit the climbing wall on the projector image plane
+        self.width_projector = None # size of the projector image
+        self.height_projector = None
         
-        self.map_regularized = [] #list of 4 points that delimit the surface in the regularized image
-        self.w_regularized = None #size of the regularized surface image
-        self.h_regularized = None
+        self.wall_roi_surface = [] # list of 4 points that delimit the climbing wall on the surface plane
+        self.width_surface = None # size of the surface image (fronto-parallel view)
+        self.height_surface = None
 
-        self.homography_camera = None #homography that goes from camera image -> regularized image
-        self.homography_projector = None #homography that goes from regularized image -> projected image
-        self.homography_camproj = None #homography that goes from camera image -> projected image
+        self.homography_CS = None # homography that maps the camera plane to the surface plane
+        self.homography_SP = None # homography that maps the surface plane to the projector plane
+        self.homography_CP = None # homography that maps the camera plane to the projector plane
 
-        self.holds = [] #list of hold labels as dircles in the format [[x,y],radious]
+        self.holds = [] # set of hold bounding boxes stored as rectangles b = [x,y,w,h]
 
-    def setCameraParametres(self, m, w, h):
-        self.w_camera = w
-        self.h_camera = h
+    def setCameraParametres(self, roi, width, height):
+        self.width_camera = width
+        self.height_camera = height
 
-        self.map_camera = [[int(x), int(y)] for x, y in m]
-        self.map_camera = algebra.polarSort(self.map_camera)
+        self.wall_roi_camera = [[int(x), int(y)] for x, y in roi]
+        self.wall_roi_camera = algebra.polarSort(self.wall_roi_camera)
 
-    def setProjectorParametres(self, m, w, h):
-        self.w_projector = w
-        self.h_projector = h
+    def setProjectorParametres(self, roi, width, height):
+        self.width_projector = width
+        self.height_projector = height
 
-        self.map_projector = [[int(x), int(y)] for x, y in m]
-        self.map_projector = algebra.polarSort(self.map_projector)
+        self.wall_roi_projector = [[int(x), int(y)] for x, y in roi]
+        self.wall_roi_projector = algebra.polarSort(self.wall_roi_projector)
 
-        pts_src = np.array(self.map_camera, dtype=np.float32)
-        pts_dst = np.array(self.map_projector, dtype=np.float32)
-        
-        self.homography_camproj = cv2.getPerspectiveTransform(pts_src, pts_dst)
+        pts_src = np.array(self.wall_roi_camera, dtype=np.float32)
+        pts_dst = np.array(self.wall_roi_projector, dtype=np.float32)
+        self.homography_CP = cv2.getPerspectiveTransform(pts_src, pts_dst)
 
-    def setRegularizedParametres(self, m, w, h):
-        self.w_regularized = w
-        self.h_regularized = h 
+    def setSurfaceParametres(self, roi, width, height):
+        self.width_surface = width
+        self.height_surface = height
 
-        self.map_regularized = [[int(x), int(y)] for x, y in m]
-        self.map_regularized = algebra.polarSort(self.map_regularized)
+        self.wall_roi_surface = [[int(x), int(y)] for x, y in roi]
+        self.wall_roi_surface = algebra.polarSort(self.wall_roi_surface)
 
-        #find the homography that transforms surface plane in camera image to regularized image
-        pts_src = np.array(self.map_camera, dtype=np.float32)
-        pts_dst = np.array(self.map_regularized, dtype=np.float32)
 
-        self.homography_camera = cv2.getPerspectiveTransform(pts_src, pts_dst)
+        pts_src = np.array(self.wall_roi_camera, dtype=np.float32)
+        pts_dst = np.array(self.wall_roi_surface, dtype=np.float32)
+        self.homography_CS = cv2.getPerspectiveTransform(pts_src, pts_dst)
 
-        #find the homography that transforms regularized image into projector plane        
-        pts_src = np.array(self.map_regularized, dtype=np.float32)
-        pts_dst = np.array(self.map_projector, dtype=np.float32)
-
-        self.homography_projector = cv2.getPerspectiveTransform(pts_src, pts_dst)
+        pts_src = np.array(self.wall_roi_surface, dtype=np.float32)
+        pts_dst = np.array(self.wall_roi_projector, dtype=np.float32)
+        self.homography_SP = cv2.getPerspectiveTransform(pts_src, pts_dst)
 
     def setHolds(self,h):
         self.holds = h
@@ -72,59 +68,53 @@ class Surface():
     def addHolds(self,h):
         self.holds += h
         
-    def getCameraMap(self):
-        return self.map_camera
+    def getWallRoiCamera(self):
+        return self.wall_roi_camera
 
-    def getProjectorMap(self):
-        return self.map_projector
+    def getWallRoiProjector(self):
+        return self.wall_roi_projector
 
-    def getRegularizedMap(self):
-        return self.map_regularized
+    def getWallRoiSurface(self):
+        return self.wall_roi_surface
 
-    def getCameraSize(self):
-        return (self.w_camera, self.h_camera)
+    def getSizeCamera(self):
+        return (self.width_camera, self.height_camera)
 
-    def getProjectorSize(self):
-        return (self.w_projector, self.h_projector)
+    def getSizeProjector(self):
+        return (self.width_projector, self.height_projector)
 
-    def getRegularizedSize(self):
-        return (self.w_regularized, self.h_regularized)
+    def getSizeSurface(self):
+        return (self.width_surface, self.height_surface)
 
-    def getMaxRegularizedsize(self):
-        return self.max_regularized_size
+    def getMaxSizeSurface(self):
+        return self.max_surface_size
 
-    def getCameraMask(self):
-        mask = np.zeros(shape=(self.h_camera, self.w_camera, 3), dtype=np.uint8)
-        polygon = np.array(self.map_camera, dtype=np.int32)
+    def getMaskCamera(self):
+        mask = np.zeros(shape=(self.height_camera, self.width_camera, 3), dtype=np.uint8)
+        polygon = np.array(self.wall_roi_camera, dtype=np.int32)
         cv2.fillPoly(mask, pts=[polygon], color=(255, 255, 255))
         return mask
 
-    def getProjectorMask(self):
-        mask = np.zeros(shape=(self.h_projector, self.w_projector, 3), dtype=np.uint8)
-        polygon = np.array(self.map_projector, dtype=np.int32)
+    def getMaskProjector(self):
+        mask = np.zeros(shape=(self.height_projector, self.width_projector, 3), dtype=np.uint8)
+        polygon = np.array(self.wall_roi_projector, dtype=np.int32)
         cv2.fillPoly(mask, pts=[polygon], color=(255, 255, 255))
         return mask
 
-    def getRegularizedMask(self):
-        mask = np.zeros(shape=(self.h_regularized, self.w_regularized, 3), dtype=np.uint8)
-        polygon = np.array(self.map_regularized, dtype=np.int32)
+    def getMaskSurface(self):
+        mask = np.zeros(shape=(self.height_surface, self.width_surface, 3), dtype=np.uint8)
+        polygon = np.array(self.wall_roi_surface, dtype=np.int32)
         cv2.fillPoly(mask, pts=[polygon], color=(255, 255, 255))
         return mask
 
     def getHolds(self):
         return self.holds
 
-    def getCameraHomography(self):
-        return self.homography_camera
+    def getHomographyCS(self):
+        return self.homography_CS
 
-    def getProjectorHomography(self):
-        return self.homography_projector
+    def getHomographySP(self):
+        return self.homography_SP
 
-    def getCameraProjectorHomography(self):
-        return self.homography_camproj
-
-    def getProjectorHomographyFromSize(self,w,h):
-        pts_src = np.array([[0,0], [0,h-1], [w-1,h-1], [w-1,0]], dtype=np.float32)
-        pts_dst = np.array(self.map_projector, dtype=np.float32)
-
-        return cv2.getPerspectiveTransform(pts_src, pts_dst)
+    def getHomographyCP(self):
+        return self.homography_CP

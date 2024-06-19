@@ -16,7 +16,7 @@ from mmpose.apis import init_model, inference_bottomup, inference_topdown
 from mmpose.visualization import FastVisualizer
 from mmengine.structures import InstanceData
 
-class MMposeTrack(QThread):
+class MMposeTracker(QThread):
     signal_preview = pyqtSignal(np.ndarray)
     signal_detection = pyqtSignal(np.ndarray)
     signal_data = pyqtSignal(list)

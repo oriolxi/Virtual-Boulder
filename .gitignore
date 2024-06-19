@@ -4,5 +4,11 @@
 .DS_Store
 Icon?
 
+# Developement files
+developement/*
+
 # Cache files
 *.pyc
+
+# Other
+.idea/

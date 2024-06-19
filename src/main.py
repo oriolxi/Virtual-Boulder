@@ -17,7 +17,7 @@ import algorithm_feature_match as feature_match
 import algorithm_homography_rank as homography_rank
 from thread_camera import Camera
 from thread_aruco_tracker import ArucoTrack
-from thread_mmpose_tracker import MMposeTrack as PoseTrack
+from thread_mmpose_tracker import MMposeTracker as PoseTrack
 #from thread_mediapipe_tracker import BlazePoseTrack as PoseTrack
 from dialog_hold_detector import HoldDetectorDialog
 from thread_hold_interaction import HoldInteractionTrack, InteractiveBoulderTrack
@@ -66,7 +66,7 @@ class MainWindow(QMainWindow):
         self.feature_matches_image = None #CVimage
 
         self.label_holdLabels.clear()
-        self.updateTableRegularizedSize(self.surface.getRegularizedSize())
+        self.updateTableRegularizedSize(self.surface.getSizeSurface())
         self.updateCalibrationTable(self.table_surface_calibration, ["-","-","-","-"])
         self.updateCalibrationTable(self.table_camera_calibration, ["-","-","-","-"])
         self.updateCalibrationTable(self.table_screen1_calibration, ["-","-","-","-"])
@@ -216,14 +216,15 @@ class MainWindow(QMainWindow):
         self.setImagePreview(self.file_feature_match_pattern, self.label_calibrationImage)
 
     def updateSurfacePreview(self):
-        if self.surface.getCameraHomography() is None:
-            reference_image_masked = cv2.bitwise_and(self.reference_image, self.surface.getCameraMask())
+        if self.surface.getHomographyCS() is None:
+            reference_image_masked = cv2.bitwise_and(self.reference_image, self.surface.getMaskCamera())
             self.setImagePreview(reference_image_masked, self.label_holdLabels)
             return
 
-        self.reference_image_reg = cv2.warpPerspective(self.reference_image, self.surface.getCameraHomography(), self.surface.getRegularizedSize())
-        self.reference_image_reg = cv2.bitwise_and(self.reference_image_reg, self.surface.getRegularizedMask())
-        self.updateTableRegularizedSize(self.surface.getRegularizedSize())
+        self.reference_image_reg = cv2.warpPerspective(self.reference_image, self.surface.getHomographyCS(),
+                                                       self.surface.getSizeSurface())
+        self.reference_image_reg = cv2.bitwise_and(self.reference_image_reg, self.surface.getMaskSurface())
+        self.updateTableRegularizedSize(self.surface.getSizeSurface())
         
         paintedHolds = util.paintRectangles(self.reference_image_reg.copy(), self.surface.getHolds())
         self.setImagePreview(paintedHolds, self.label_holdLabels)
@@ -249,7 +250,7 @@ class MainWindow(QMainWindow):
     def showSelectedSurface(self): 
         if self.reference_image is None: return
 
-        painted = util.paintSelection(self.reference_image.copy(), self.surface.getCameraMap())
+        painted = util.paintSelection(self.reference_image.copy(), self.surface.getWallRoiCamera())
         rgb = cv2.cvtColor(painted, cv2.COLOR_BGR2RGB) #matlplotlob uses RGB and opencv BGR
         plt.figure()
         plt.imshow(rgb, 'gray')
@@ -263,13 +264,13 @@ class MainWindow(QMainWindow):
         plt.show()
 
     def projectHolds(self):
-            if self.surface.getCameraMap() == []: return
-            if self.surface.getProjectorMap() == []: return
+            if self.surface.getWallRoiCamera() == []: return
+            if self.surface.getWallRoiProjector() == []: return
 
             img = np.zeros_like(self.reference_image_reg)
             util.paintRectangles(img, self.surface.getHolds(), (255,255,255), -1)
-            img = cv2.bitwise_and(img, self.surface.getRegularizedMask())
-            projection = cv2.warpPerspective(img, self.surface.getProjectorHomography(), self.surface.getProjectorSize())
+            img = cv2.bitwise_and(img, self.surface.getMaskSurface())
+            projection = cv2.warpPerspective(img, self.surface.getHomographySP(), self.surface.getSizeProjector())
             qImg = util.QimageFromCVimage(projection)
 
             self.projector.setImage(qImg)
@@ -281,10 +282,15 @@ class MainWindow(QMainWindow):
         self.projector.start()
 
     def projectTestImageDistorted(self): 
-        if self.surface.getProjectorMap() == []: return
+        if self.surface.getWallRoiProjector() == []: return
 
         img = cv2.imread(self.file_test_image)
-        img_distorted = cv2.warpPerspective(img, self.surface.getProjectorHomographyFromSize(img.shape[1],img.shape[0]), self.surface.getProjectorSize())
+        w = img.shape[1]
+        h = img.shape[0]
+        pts_src = np.array([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]], dtype=np.float32)
+        pts_dst = np.array(self.surface.getWallRoiProjector(), dtype=np.float32)
+        H = cv2.getPerspectiveTransform(pts_src, pts_dst)
+        img_distorted = cv2.warpPerspective(img, H, self.surface.getSizeProjector())
         qImg = util.QimageFromCVimage(img_distorted)
 
         self.projector.setImage(qImg)
@@ -299,8 +305,8 @@ class MainWindow(QMainWindow):
         self.startWindowThread(thread=self.projector, close_slots=[])
 
     def updateCameraSurfaceSelection(self, w, h, p): 
-        self.surface.setCameraParametres(p,w,h)
-        self.updateCalibrationTable(self.table_surface_calibration, self.surface.getCameraMap())
+        self.surface.setCameraParametres(p, w, h)
+        self.updateCalibrationTable(self.table_surface_calibration, self.surface.getWallRoiCamera())
         self.reference_image = self.camera.getLastFrame()
         self.updateSurfacePreview()
         if self.camera_calibrator:  self.camera_calibrator.deleteLater()
@@ -311,7 +317,7 @@ class MainWindow(QMainWindow):
         self.startSelectionThread(self.projector_calibrator, close_slots=[], done_slots=[self.updateProjectorSurfaceSelection], click_slots=[])
 
     def startAutoProjectorSurfaceDetection(self): 
-        if self.surface.getCameraMap() == []: return
+        if self.surface.getWallRoiCamera() == []: return
 
         img = cv2.imread(self.file_feature_match_pattern, cv2.IMREAD_COLOR)
         self.feature_match_pattern = img[0:self.projector.getSize().height(),0:self.projector.getSize().width()].copy()
@@ -322,26 +328,26 @@ class MainWindow(QMainWindow):
         self.startWindowThread(thread=self.camera_preview, close_slots=[self.camera.stop, self.projector.stop, self.helperAutoProjectorSurfaceSelection])
 
     def helperAutoProjectorSurfaceSelection(self): 
-        self.feature_match_frame = cv2.bitwise_and(self.camera.getLastFrame(), self.surface.getCameraMask())
+        self.feature_match_frame = cv2.bitwise_and(self.camera.getLastFrame(), self.surface.getMaskCamera())
 
         H, self.feature_matches_image = feature_match.featureMatching(self.feature_match_frame, self.feature_match_pattern)
         
         if H is None: return
-        pts = cv2.perspectiveTransform(np.array([self.surface.getCameraMap()], dtype=np.float32), H)
+        pts = cv2.perspectiveTransform(np.array([self.surface.getWallRoiCamera()], dtype=np.float32), H)
 
         self.updateProjectorSurfaceSelection(self.feature_match_pattern.shape[1], self.feature_match_pattern.shape[0], pts[0])
 
     def updateProjectorSurfaceSelection(self, w, h, p): 
-        self.surface.setProjectorParametres(p,w,h)
-        self.updateCalibrationTable(self.table_screen1_calibration, self.surface.getProjectorMap())
+        self.surface.setProjectorParametres(p, w, h)
+        self.updateCalibrationTable(self.table_screen1_calibration, self.surface.getWallRoiProjector())
         if self.projector_calibrator: self.projector_calibrator.deleteLater()
         self.projector_calibrator = None
 
     def startFrontViewSurfaceDetection(self):
-        if self.surface.getCameraMap() == []: return
-        if self.surface.getProjectorMap() == []: return
+        if self.surface.getWallRoiCamera() == []: return
+        if self.surface.getWallRoiProjector() == []: return
 
-        mask = self.surface.getProjectorMask()
+        mask = self.surface.getMaskProjector()
         qImg = util.QimageFromCVimage(mask)
         self.projector.setImage(qImg)
 
@@ -356,15 +362,15 @@ class MainWindow(QMainWindow):
 
         h = homography_rank.getBestArucoHomography(W)
 
-        new_pts = cv2.perspectiveTransform(np.array([self.surface.getCameraMap()], dtype=np.float32), h)
+        new_pts = cv2.perspectiveTransform(np.array([self.surface.getWallRoiCamera()], dtype=np.float32), h)
         new_pts = algebra.rotatePtsToHorizontalLine(new_pts, new_pts[0][0], new_pts[0][3])
         new_pts = algebra.translatePtsPositive(new_pts)
-        new_pts = algebra.scalePtsToLimits(new_pts,self.surface.getMaxRegularizedsize())
+        new_pts = algebra.scalePtsToLimits(new_pts, self.surface.getMaxSizeSurface())
         bb = algebra.get2DBoundingBox(new_pts[0])
 
-        self.surface.setRegularizedParametres(new_pts[0], int(bb[0]), int(bb[1]))
+        self.surface.setSurfaceParametres(new_pts[0], int(bb[0]), int(bb[1]))
         
-        self.updateCalibrationTable(self.table_camera_calibration, self.surface.getRegularizedMap())
+        self.updateCalibrationTable(self.table_camera_calibration, self.surface.getWallRoiSurface())
         self.updateSurfacePreview()
 
         if self.camera_calibrator:  self.camera_calibrator.deleteLater()
@@ -372,21 +378,21 @@ class MainWindow(QMainWindow):
 
 #  SURFACE HORIZONATAL CORRECTION  ----------------------------------------------------  #
     def startRegularizedHorizontal(self): 
-        if self.surface.getCameraMap() == []: return
-        if self.surface.getProjectorMap() == []: return
+        if self.surface.getWallRoiCamera() == []: return
+        if self.surface.getWallRoiProjector() == []: return
 
         self.camera_calibrator = ProjectionAreaSelection(self.available_screens[self.cBox_controlScreen.currentIndex()], False, 2)
         self.camera_calibrator.setImage(util.QimageFromCVimage(self.reference_image_reg))
         self.startSelectionThread(self.camera_calibrator, close_slots=[], done_slots=[self.updateRegularizedHorizontal], click_slots=[])
 
     def updateRegularizedHorizontal(self, w, h, p):
-        new_pts = algebra.rotatePtsToHorizontalLine(np.array([self.surface.getRegularizedMap()], dtype=np.float32), p[0], p[1])
+        new_pts = algebra.rotatePtsToHorizontalLine(np.array([self.surface.getWallRoiSurface()], dtype=np.float32), p[0], p[1])
         new_pts = algebra.translatePtsPositive(new_pts)
-        new_pts = algebra.scalePtsToLimits(new_pts, self.surface.getMaxRegularizedsize())
+        new_pts = algebra.scalePtsToLimits(new_pts, self.surface.getMaxSizeSurface())
         bb = algebra.get2DBoundingBox(new_pts[0])
 
-        self.surface.setRegularizedParametres(new_pts[0], int(bb[0]), int(bb[1]))
-        self.updateCalibrationTable(self.table_camera_calibration, self.surface.getRegularizedMap())
+        self.surface.setSurfaceParametres(new_pts[0], int(bb[0]), int(bb[1]))
+        self.updateCalibrationTable(self.table_camera_calibration, self.surface.getWallRoiSurface())
         self.updateSurfacePreview()
 
 #  HOLD SELECTION  ----------------------------------------------------  #
@@ -420,10 +426,10 @@ class MainWindow(QMainWindow):
         self.startWindowThread(thread=self.camera_preview, close_slots=[self.camera.stop])
 
     def startArucoTracker(self):
-        if self.surface.getCameraMap() == []: return
-        if self.surface.getProjectorMap() == []: return
+        if self.surface.getWallRoiCamera() == []: return
+        if self.surface.getWallRoiProjector() == []: return
 
-        self.perspective_warper = PerspectiveWarper(self.surface.getCameraProjectorHomography(), self.surface.getProjectorSize())
+        self.perspective_warper = PerspectiveWarper(self.surface.getHomographyCP(), self.surface.getSizeProjector())
 
         self.tracker_aruco.setRenderPreview(self.render_previews)
         if self.render_previews: 
@@ -443,10 +449,10 @@ class MainWindow(QMainWindow):
         self.startWindowThread(thread=self.camera_preview, close_slots=[self.camera.stop])
 
     def startPoseTracker(self):
-        if self.surface.getCameraMap() == []: return
-        if self.surface.getProjectorMap() == []: return
+        if self.surface.getWallRoiCamera() == []: return
+        if self.surface.getWallRoiProjector() == []: return
 
-        self.perspective_warper = PerspectiveWarper(self.surface.getCameraProjectorHomography(), self.surface.getProjectorSize())
+        self.perspective_warper = PerspectiveWarper(self.surface.getHomographyCP(), self.surface.getSizeProjector())
 
         self.tracker_mmpose.setRenderPreview(self.render_previews)
         if self.render_previews: 
@@ -461,8 +467,8 @@ class MainWindow(QMainWindow):
 # INTERACTIVE EXPERIENCES  ----------------------------------------------------  #
 
     def startHoldInteraction(self):
-        if self.surface.getCameraMap() == []: return
-        if self.surface.getProjectorMap() == []: return
+        if self.surface.getWallRoiCamera() == []: return
+        if self.surface.getWallRoiProjector() == []: return
 
         self.hold_interaction_traker = HoldInteractionTrack(self.surface)
 
@@ -487,8 +493,8 @@ class MainWindow(QMainWindow):
         if self.boulder_creator:  self.boulder_creator.deleteLater()
 
     def startBoulder(self):
-        if self.surface.getCameraMap() == []: return
-        if self.surface.getProjectorMap() == []: return
+        if self.surface.getWallRoiCamera() == []: return
+        if self.surface.getWallRoiProjector() == []: return
         if self.boulder == []: return
 
         self.boulder_traker = InteractiveBoulderTrack(self.surface, self.boulder)
@@ -514,30 +520,32 @@ class MainWindow(QMainWindow):
         if directory != '':
             if self.reference_image is not None: 
                 cv2.imwrite(directory + "/reference_img.jpg", self.reference_image)
-                if self.surface.getCameraMap() != []:
-                    regularized = cv2.warpPerspective(self.reference_image, self.surface.getCameraHomography(), self.surface.getRegularizedSize())
-                    regularized = cv2.bitwise_and(regularized, self.surface.getRegularizedMask())
+                if self.surface.getWallRoiCamera() != []:
+                    regularized = cv2.warpPerspective(self.reference_image, self.surface.getHomographyCS(),
+                                                      self.surface.getSizeSurface())
+                    regularized = cv2.bitwise_and(regularized, self.surface.getMaskSurface())
                     cv2.imwrite(directory + "/reference_img_reg.jpg", regularized)
             
             if self.feature_match_frame is not None: 
                 cv2.imwrite(directory + "/feature_match_frame.jpg", self.feature_match_frame)
-                if self.surface.getCameraMap() != []:
-                    regularized = cv2.warpPerspective(self.feature_match_frame, self.surface.getCameraHomography(), self.surface.getRegularizedSize())
+                if self.surface.getWallRoiCamera() != []:
+                    regularized = cv2.warpPerspective(self.feature_match_frame, self.surface.getHomographyCS(),
+                                                      self.surface.getSizeSurface())
                     cv2.imwrite(directory + "/feature_match_frame_reg.jpg", regularized)
 
             if self.feature_match_pattern is not None: 
                 cv2.imwrite(directory + "/feature_match_pattern.jpg", self.feature_match_pattern)
 
-            if self.surface.getProjectorMap() != []:
-                img = np.zeros((self.surface.getRegularizedSize()[1],self.surface.getRegularizedSize()[0],3), dtype=np.uint8)
+            if self.surface.getWallRoiProjector() != []:
+                img = np.zeros((self.surface.getSizeSurface()[1], self.surface.getSizeSurface()[0], 3), dtype=np.uint8)
                 img.fill(255)
-                regularized = cv2.warpPerspective(img, self.surface.getProjectorHomography(), self.surface.getProjectorSize())
+                regularized = cv2.warpPerspective(img, self.surface.getHomographySP(), self.surface.getSizeProjector())
                 cv2.imwrite(directory + "/homography_representation.jpg", regularized)
             
             print("Images written to: " + directory)
 
     def saveReferenceVideo(self): 
-        if self.surface.getCameraMap() == []: return
+        if self.surface.getWallRoiCamera() == []: return
 
         self.vid_directory = QFileDialog.getExistingDirectory(self, "Open Directory","./")
         self.vid_counter = 0
@@ -546,9 +554,9 @@ class MainWindow(QMainWindow):
 
     def saveReferenceVideoHelper(self,frame): 
         cv2.imwrite(self.vid_directory + "/vid_" + str(self.vid_counter) + ".jpg", frame)
-        if self.surface.getCameraMap() is not None:
-            regularized = cv2.warpPerspective(frame, self.surface.getCameraHomography(), self.surface.getRegularizedSize())
-            regularized = cv2.bitwise_and(regularized, self.surface.getRegularizedMask())
+        if self.surface.getWallRoiCamera() is not None:
+            regularized = cv2.warpPerspective(frame, self.surface.getHomographyCS(), self.surface.getSizeSurface())
+            regularized = cv2.bitwise_and(regularized, self.surface.getMaskSurface())
             cv2.imwrite(self.vid_directory + "/vid_reg_" + str(self.vid_counter) + ".jpg", regularized)
         self.vid_counter += 1
 

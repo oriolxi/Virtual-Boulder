@@ -6,11 +6,11 @@ import util
 
 class Camera(QThread):
     timer = None
-    camera = None #QCamera
+    camera = None # QCamera
     camera_index = None
 
-    cap = None
-    vid_rate = 40 #milliseconds
+    capture_session = None
+    vid_rate = 40 # milliseconds (25fps)
 
     last_frame = None
     signal_frame = pyqtSignal(np.ndarray)
@@ -28,16 +28,10 @@ class Camera(QThread):
             self.last_frame = frame
 
     def nextFrameSlot(self):
-        ret, frame = self.cap.read()
+        ret, frame = self.capture_session.read()
         self.__processNewFrame(frame)
 
     def getSize(self):
-        ''' #get capture property open cv
-        self.cap = cv2.VideoCapture(self.camera_index)
-        width  = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)   # float `width`
-        height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)  # float `height`
-        self.cap.release()
-        '''
         return self.camera.cameraDevice().videoFormats()[-1].resolution()
         
     def getLastFrame(self):
@@ -48,11 +42,11 @@ class Camera(QThread):
             self.camera_index = idx
         
     def start(self):
-        self.cap = cv2.VideoCapture(self.camera_index)
-        while not self.cap.isOpened (): pass
-        while self.cap.read()[1] is None: pass
+        self.capture_session = cv2.VideoCapture(self.camera_index)
+        while not self.capture_session.isOpened (): pass
+        while self.capture_session.read()[1] is None: pass
         self.timer.start(self.vid_rate)
 
     def stop(self):
         self.timer.stop()
-        self.cap.release()
+        self.capture_session.release()
