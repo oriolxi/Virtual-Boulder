@@ -1520,8 +1520,16 @@
     <addaction name="separator"/>
     <addaction name="action_delete_boulder"/>
    </widget>
+   <widget class="QMenu" name="menuSave_files">
+    <property name="title">
+     <string>Save files</string>
+    </property>
+    <addaction name="action_saveSurfaceHolds"/>
+    <addaction name="action_loadSurfaceHolds"/>
+   </widget>
    <addaction name="menu_experimental"/>
    <addaction name="menuInteractions"/>
+   <addaction name="menuSave_files"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="action_saveRefImages">
@@ -1599,6 +1607,16 @@
   <action name="action_delete_boulder">
    <property name="text">
     <string>Delete boulder</string>
+   </property>
+  </action>
+  <action name="action_saveSurfaceHolds">
+   <property name="text">
+    <string>Save surface RoI - Holds</string>
+   </property>
+  </action>
+  <action name="action_loadSurfaceHolds">
+   <property name="text">
+    <string>Load surface RoI - Holds</string>
    </property>
   </action>
  </widget>

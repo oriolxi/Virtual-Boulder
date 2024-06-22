@@ -1,5 +1,7 @@
+import os
 import cv2
 import sys
+import pickle
 import numpy as np
 from pathlib import Path
 from matplotlib import pyplot as plt
@@ -18,7 +20,6 @@ import algorithm_homography_rank as homography_rank
 from thread_camera import Camera
 from thread_aruco_tracker import ArucoTrack
 from thread_mmpose_tracker import MMposeTracker as PoseTrack
-#from thread_mediapipe_tracker import BlazePoseTrack as PoseTrack
 from dialog_hold_detector import HoldDetectorDialog
 from thread_hold_interaction import HoldInteractionTrack, InteractiveBoulderTrack
 from thread_perspective_warper import PerspectiveWarper
@@ -129,6 +130,9 @@ class MainWindow(QMainWindow):
         self.action_start_boulder.triggered.connect(self.startBoulder)
         self.action_delete_boulder.triggered.connect(self.deleteBoulder)
 
+        self.action_saveSurfaceHolds.triggered.connect(self.createSaveFile)
+        self.action_loadSurfaceHolds.triggered.connect(self.loadSaveFile)
+
     def __updateCamera(self): 
         self.camera.setCamera(QCamera(self.available_cameras[self.cBox_camera.currentIndex()]),self.cBox_camera.currentIndex())
         self.table_camera_size.setItem(0,1,QTableWidgetItem(str(self.camera.getSize().width())))
@@ -149,6 +153,30 @@ class MainWindow(QMainWindow):
 
 #   ---------------------------------------------------- WORK AREA ----------------------------------------------------  #
 
+    def loadSaveFile(self):
+        dialog = QFileDialog()
+        dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
+        dialog.setNameFilter("Images (*.pkl)")
+        dialog.setDirectory('./')
+        dialog.setViewMode(QFileDialog.ViewMode.Detail)
+        if dialog.exec():
+            fileNames = dialog.selectedFiles()
+        if os.path.isfile(fileNames[0]):
+            with open(fileNames[0], 'rb') as inp:
+                self.surface.setHolds(pickle.load(inp))
+                roi = pickle.load(inp)
+                size = pickle.load(inp)
+                self.surface.setSurfaceParametres(roi,size[0],size[1])
+            self.updateCalibrationTable(self.table_camera_calibration, self.surface.getWallRoiSurface())
+            self.updateSurfacePreview()
+
+    def createSaveFile(self):
+        directory = QFileDialog.getExistingDirectory(self, "Open Directory","./")
+        if directory != '':
+            with open(directory + '/save.pkl', 'wb') as output:
+                pickle.dump(self.surface.getHolds(), output, pickle.HIGHEST_PROTOCOL)
+                pickle.dump(self.surface.getWallRoiSurface(), output, pickle.HIGHEST_PROTOCOL)
+                pickle.dump(self.surface.getSizeSurface(), output, pickle.HIGHEST_PROTOCOL)
 
 #   ---------------------------------------------------- WORK AREA ----------------------------------------------------  #
 
