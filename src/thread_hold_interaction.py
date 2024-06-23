@@ -67,7 +67,7 @@ class ClimbrTrack(QThread):
         if keypoints["detection"]:
             return self._getHands(keypoints)
 
-class HoldInteractionTrack(ClimbrTrack):
+class FreeClimbingTracker(ClimbrTrack):
     render_preview = True
 
     def __init__(self, s):

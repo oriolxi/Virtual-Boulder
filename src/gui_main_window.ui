@@ -26,7 +26,7 @@
     <property name="title">
      <string>Configuration</string>
     </property>
-    <widget class="QComboBox" name="cBox_screen1">
+    <widget class="QComboBox" name="cbox_available_projector_screens">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -57,7 +57,7 @@
       <string>Projector</string>
      </property>
     </widget>
-    <widget class="QTableWidget" name="table_screen1_size">
+    <widget class="QTableWidget" name="tbl_size_projector">
      <property name="geometry">
       <rect>
        <x>30</x>
@@ -144,7 +144,7 @@
       </property>
      </item>
     </widget>
-    <widget class="QTableWidget" name="table_camera_size">
+    <widget class="QTableWidget" name="tbl_size_camera">
      <property name="geometry">
       <rect>
        <x>30</x>
@@ -231,7 +231,7 @@
       </property>
      </item>
     </widget>
-    <widget class="QComboBox" name="cBox_camera">
+    <widget class="QComboBox" name="cbox_available_cameras">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -262,7 +262,7 @@
       <string>Càmera</string>
      </property>
     </widget>
-    <widget class="QComboBox" name="cBox_controlScreen">
+    <widget class="QComboBox" name="cbox_available_control_screens">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -293,7 +293,7 @@
       <string>Control Screen</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="btn_camera_preview">
+    <widget class="QPushButton" name="btn_preview_camera">
      <property name="geometry">
       <rect>
        <x>143</x>
@@ -319,7 +319,7 @@
     <property name="title">
      <string>Files</string>
     </property>
-    <widget class="QPushButton" name="btn_testImage_openFile">
+    <widget class="QPushButton" name="btn_openfile_test_image">
      <property name="geometry">
       <rect>
        <x>150</x>
@@ -332,7 +332,7 @@
       <string>Open File</string>
      </property>
     </widget>
-    <widget class="QLabel" name="label_testImage">
+    <widget class="QLabel" name="lbl_preview_test_image">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -424,7 +424,7 @@
       <string>Test image</string>
      </property>
     </widget>
-    <widget class="QLabel" name="label_calibrationImage">
+    <widget class="QLabel" name="lbl_preview_fmatch_pattern">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -498,7 +498,7 @@
       <bool>false</bool>
      </property>
     </widget>
-    <widget class="QPushButton" name="btn_calibrationImage_openFile">
+    <widget class="QPushButton" name="btn_openfile_fmatch_pattern">
      <property name="geometry">
       <rect>
        <x>150</x>
@@ -532,7 +532,7 @@
       <string>Calibration image</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="btn_testImage_projectWarped">
+    <widget class="QPushButton" name="btn_project_warped_test_image">
      <property name="geometry">
       <rect>
        <x>130</x>
@@ -545,7 +545,7 @@
       <string>Project warped</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="btn_testImage_project">
+    <widget class="QPushButton" name="btn_project_test_image">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -571,7 +571,7 @@
     <property name="title">
      <string>Control</string>
     </property>
-    <widget class="QPushButton" name="btn_show_aruco_tracker">
+    <widget class="QPushButton" name="btn_start_aruco_tracker">
      <property name="geometry">
       <rect>
        <x>130</x>
@@ -597,7 +597,7 @@
       <string>Preview Pose</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="btn_show_mmpose_tracker">
+    <widget class="QPushButton" name="btn_start_mmpose_tracker">
      <property name="geometry">
       <rect>
        <x>130</x>
@@ -614,29 +614,13 @@
      <property name="geometry">
       <rect>
        <x>50</x>
-       <y>150</y>
+       <y>140</y>
        <width>151</width>
        <height>32</height>
       </rect>
      </property>
      <property name="text">
       <string>Close ALL Windows</string>
-     </property>
-    </widget>
-    <widget class="QPushButton" name="btn_show_hold_interaction">
-     <property name="enabled">
-      <bool>true</bool>
-     </property>
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>120</y>
-       <width>231</width>
-       <height>32</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Hold Interaction</string>
      </property>
     </widget>
     <widget class="QPushButton" name="btn_preview_aruco_tracker">
@@ -652,7 +636,7 @@
       <string>Preview Aruco</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="btn_projectHolds">
+    <widget class="QPushButton" name="btn_project_holds">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -765,7 +749,7 @@
       </property>
      </item>
     </widget>
-    <widget class="QPushButton" name="btn_holdSelector">
+    <widget class="QPushButton" name="btn_open_hold_editor">
      <property name="geometry">
       <rect>
        <x>250</x>
@@ -778,7 +762,7 @@
       <string>Manual</string>
      </property>
     </widget>
-    <widget class="QLabel" name="label_holdLabels">
+    <widget class="QLabel" name="lbl_preview_surface">
      <property name="geometry">
       <rect>
        <x>250</x>
@@ -909,7 +893,7 @@
       <string>Surface points C</string>
      </property>
     </widget>
-    <widget class="QTableWidget" name="table_surface_calibration">
+    <widget class="QTableWidget" name="tbl_roi_frontview">
      <property name="geometry">
       <rect>
        <x>20</x>
@@ -999,7 +983,7 @@
       </property>
      </item>
     </widget>
-    <widget class="QPushButton" name="btn_surface_mCal">
+    <widget class="QPushButton" name="btn_srfdet_camera">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -1033,7 +1017,7 @@
       <string>3. Surface rectification</string>
      </property>
     </widget>
-    <widget class="QTableWidget" name="table_screen1_calibration">
+    <widget class="QTableWidget" name="tbl_roi_projector">
      <property name="geometry">
       <rect>
        <x>20</x>
@@ -1141,7 +1125,7 @@
       <string>2. Detect surface - Projector</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="btn_screen1_mCal">
+    <widget class="QPushButton" name="btn_srfdet_projector_m">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -1172,7 +1156,7 @@
       <string>Surface points P</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="btn_screen1_aCal">
+    <widget class="QPushButton" name="btn_srfdet_projector_a">
      <property name="enabled">
       <bool>true</bool>
      </property>
@@ -1188,7 +1172,7 @@
       <string>Automatic</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="btn_camera_aCal">
+    <widget class="QPushButton" name="btn_srfdet_frontview">
      <property name="enabled">
       <bool>true</bool>
      </property>
@@ -1222,7 +1206,7 @@
       <string>Surface points S</string>
      </property>
     </widget>
-    <widget class="QTableWidget" name="table_camera_calibration">
+    <widget class="QTableWidget" name="tbl_roi_camera">
      <property name="geometry">
       <rect>
        <x>20</x>
@@ -1371,7 +1355,7 @@
       <bool>true</bool>
      </property>
     </widget>
-    <widget class="QPushButton" name="btn_holdsDelete">
+    <widget class="QPushButton" name="btn_delete_holds">
      <property name="geometry">
       <rect>
        <x>370</x>
@@ -1384,7 +1368,7 @@
       <string>Delete Holds</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="btn_surface_showSelection">
+    <widget class="QPushButton" name="btn_preview_camera_roi">
      <property name="geometry">
       <rect>
        <x>130</x>
@@ -1397,7 +1381,7 @@
       <string>Show sel.</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="btn_screen1_showFMatch">
+    <widget class="QPushButton" name="btn_preview_fmatch">
      <property name="geometry">
       <rect>
        <x>130</x>
@@ -1410,7 +1394,7 @@
       <string>Show f.mach</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="btn_regularized_rotate">
+    <widget class="QPushButton" name="btn_rotate_frontview">
      <property name="enabled">
       <bool>true</bool>
      </property>
@@ -1426,7 +1410,7 @@
       <string>Rotate</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="btn_holdDetection">
+    <widget class="QPushButton" name="btn_open_hold_detection">
      <property name="geometry">
       <rect>
        <x>370</x>
@@ -1500,44 +1484,46 @@
     <property name="title">
      <string>Experimental</string>
     </property>
-    <addaction name="action_render_preview"/>
+    <addaction name="act_set_render_previews"/>
     <addaction name="separator"/>
     <addaction name="action_show"/>
     <addaction name="action_distort"/>
     <addaction name="separator"/>
-    <addaction name="action_saveRefImages"/>
-    <addaction name="action_saveRefVideo"/>
+    <addaction name="act_savefile_reference_images"/>
+    <addaction name="act_savefile_reference_video"/>
     <addaction name="separator"/>
-    <addaction name="action_clearAll"/>
+    <addaction name="act_clear_all_data"/>
    </widget>
    <widget class="QMenu" name="menuInteractions">
     <property name="title">
-     <string>Interactive boulder</string>
+     <string>Interactive expriences</string>
     </property>
+    <addaction name="act_start_free_climbing"/>
     <addaction name="separator"/>
-    <addaction name="action_create_boulder"/>
-    <addaction name="action_start_boulder"/>
+    <addaction name="act_open_boulder_creator"/>
+    <addaction name="act_start_boulder"/>
     <addaction name="separator"/>
-    <addaction name="action_delete_boulder"/>
+    <addaction name="act_delete_boulder"/>
+    <addaction name="separator"/>
    </widget>
    <widget class="QMenu" name="menuSave_files">
     <property name="title">
      <string>Save files</string>
     </property>
-    <addaction name="action_saveSurfaceHolds"/>
-    <addaction name="action_loadSurfaceHolds"/>
+    <addaction name="act_savefile_sroi_and_holds"/>
+    <addaction name="act_openfile_sroi_and_holds"/>
    </widget>
    <addaction name="menu_experimental"/>
    <addaction name="menuInteractions"/>
    <addaction name="menuSave_files"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
-  <action name="action_saveRefImages">
+  <action name="act_savefile_reference_images">
    <property name="text">
     <string>Save Reference Images</string>
    </property>
   </action>
-  <action name="action_saveRefVideo">
+  <action name="act_savefile_reference_video">
    <property name="text">
     <string>Capture Reference Video</string>
    </property>
@@ -1567,22 +1553,22 @@
     <string>Show feature match</string>
    </property>
   </action>
-  <action name="action_clearAll">
+  <action name="act_clear_all_data">
    <property name="text">
     <string>Clear All Data</string>
    </property>
   </action>
-  <action name="action_create_boulder">
+  <action name="act_open_boulder_creator">
    <property name="text">
     <string>Create boulder</string>
    </property>
   </action>
-  <action name="action_start_boulder">
+  <action name="act_start_boulder">
    <property name="text">
     <string>Start boulder</string>
    </property>
   </action>
-  <action name="action_render_preview">
+  <action name="act_set_render_previews">
    <property name="checkable">
     <bool>true</bool>
    </property>
@@ -1604,19 +1590,24 @@
     <string>Flip camera</string>
    </property>
   </action>
-  <action name="action_delete_boulder">
+  <action name="act_delete_boulder">
    <property name="text">
     <string>Delete boulder</string>
    </property>
   </action>
-  <action name="action_saveSurfaceHolds">
+  <action name="act_savefile_sroi_and_holds">
    <property name="text">
     <string>Save surface RoI - Holds</string>
    </property>
   </action>
-  <action name="action_loadSurfaceHolds">
+  <action name="act_openfile_sroi_and_holds">
    <property name="text">
     <string>Load surface RoI - Holds</string>
+   </property>
+  </action>
+  <action name="act_start_free_climbing">
+   <property name="text">
+    <string>Start free climbing</string>
    </property>
   </action>
  </widget>

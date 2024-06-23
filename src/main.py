@@ -21,25 +21,24 @@ from thread_camera import Camera
 from thread_aruco_tracker import ArucoTrack
 from thread_mmpose_tracker import MMposeTracker as PoseTrack
 from dialog_hold_detector import HoldDetectorDialog
-from thread_hold_interaction import HoldInteractionTrack, InteractiveBoulderTrack
+from thread_hold_interaction import FreeClimbingTracker, InteractiveBoulderTrack
 from thread_perspective_warper import PerspectiveWarper
 
 class MainWindow(QMainWindow):
-    projector_calibrator = None #created and destroyed as needed
-    camera_calibrator = None #created and destroyed as needed
-    hold_selector = None #created and destroyed as needed
-    dialog = None #created and destroyed as needed
-    perspective_warper = None #created and destroyed as needed
-    boulder_creator = None #created and destroyed as needed
+    wdw_projected_area_selector = None #created and destroyed as needed
+    wdw_windowed_area_selector = None #created and destroyed as needed
+    wdw_hold_editor = None #created and destroyed as needed
+    wdw_dialog = None #created and destroyed as needed
+    wdw_boulder_creator = None  # created and destroyed as needed
 
     file_test_image = "img/via1.jpg"
-    file_feature_match_pattern = "img/calibration_rainbow.png"
+    file_fmatch_pattern = "img/calibration_rainbow.png"
 
     def __init__(self):
         super().__init__()
         
         uic.loadUi("gui_main_window.ui", self)
-        self.setWindowTitle("TFG projecció roco")
+        self.setWindowTitle("Virtual Boulder")
         self.__loadResources()
         plt.ion() # force pyplot to use it's own thread for figures (QCoreApplication::exec: The event loop is already running)   
 
@@ -50,102 +49,100 @@ class MainWindow(QMainWindow):
         self.camera = Camera(QCamera(self.available_cameras[0]),0)
         self.surface = Surface()
         self.projector = Projection(self.available_screens[0], True)
-        self.camera_preview = Projection(self.available_screens[0], False)
         self.boulder = []
 
-        self.setImagePreview(self.file_test_image, self.label_testImage)
-        self.setImagePreview(self.file_feature_match_pattern, self.label_calibrationImage)
+        self.wdw_preview = Projection(self.available_screens[0], False)
+
+        self.setImageLblPreview(self.file_test_image, self.lbl_preview_test_image)
+        self.setImageLblPreview(self.file_fmatch_pattern, self.lbl_preview_fmatch_pattern)
 
         self.render_previews = False
         self.tracker_aruco = ArucoTrack()
         self.tracker_mmpose = PoseTrack()
 
-        self.feature_match_pattern = None #CVimage
-        self.feature_match_frame = None #CVimage
-        self.reference_image = None #CVimage
-        self.reference_image_reg = None #CVimage
-        self.feature_matches_image = None #CVimage
+        self.img_fmatch_pattern = None #CVimage
+        self.img_fmatch_frame = None #CVimage
+        self.img_reference = None #CVimage
+        self.img_reference_frontview = None #CVimage
+        self.img_feature_matches = None #CVimage
 
-        self.label_holdLabels.clear()
-        self.updateTableRegularizedSize(self.surface.getSizeSurface())
-        self.updateCalibrationTable(self.table_surface_calibration, ["-","-","-","-"])
-        self.updateCalibrationTable(self.table_camera_calibration, ["-","-","-","-"])
-        self.updateCalibrationTable(self.table_screen1_calibration, ["-","-","-","-"])
+        self.lbl_preview_surface.clear()
+        self.updateFrontViewSizeTable(self.surface.getSizeSurface())
+        self.updateRoiTable(self.tbl_roi_frontview, ["-", "-", "-", "-"])
+        self.updateRoiTable(self.tbl_roi_camera, ["-", "-", "-", "-"])
+        self.updateRoiTable(self.tbl_roi_projector, ["-", "-", "-", "-"])
 
         self.__setUpGui()
 
     def __setUpGui(self): 
-        self.btn_surface_mCal.clicked.connect(self.startCameraSurfaceDetection)
+        self.btn_srfdet_camera.clicked.connect(self.startCameraSurfaceDetection)
+        self.btn_srfdet_projector_m.clicked.connect(self.startManualProjectorSurfaceDetection)
+        self.btn_srfdet_projector_a.clicked.connect(self.startAutoProjectorSurfaceDetection)
+        self.btn_srfdet_frontview.clicked.connect(self.startFrontViewSurfaceDetection)
+        self.btn_rotate_frontview.clicked.connect(self.startFrontViewHorizon)
 
-        self.btn_screen1_mCal.clicked.connect(self.startManualProjectorSurfaceDetection)
-        self.btn_screen1_aCal.clicked.connect(self.startAutoProjectorSurfaceDetection)
-
-        self.btn_camera_aCal.clicked.connect(self.startFrontViewSurfaceDetection)
-
-        self.btn_camera_preview.clicked.connect(self.startCameraPreview)
-        self.cBox_camera.addItems([i.description() for i in self.available_cameras])
-        self.cBox_camera.currentIndexChanged.connect(self.__updateCamera)
-        self.cBox_camera.setCurrentIndex(0)
+        self.btn_preview_camera.clicked.connect(self.previewCamera)
+        self.cbox_available_cameras.addItems([i.description() for i in self.available_cameras])
+        self.cbox_available_cameras.currentIndexChanged.connect(self.__updateCamera)
+        self.cbox_available_cameras.setCurrentIndex(0)
         self.__updateCamera()
 
-        self.cBox_screen1.addItems([i.name() for i in self.available_screens])
-        self.cBox_screen1.currentIndexChanged.connect(self.__updateProjectorScreen)
-        self.cBox_screen1.setCurrentIndex(0)
+        self.cbox_available_projector_screens.addItems([i.name() for i in self.available_screens])
+        self.cbox_available_projector_screens.currentIndexChanged.connect(self.__updateProjectorScreen)
+        self.cbox_available_projector_screens.setCurrentIndex(0)
         self.__updateProjectorScreen()
 
-        self.cBox_controlScreen.addItems([i.name() for i in self.available_screens])
-        self.cBox_controlScreen.currentIndexChanged.connect(self.__updateMainScreen)
-        self.cBox_controlScreen.setCurrentIndex(0)
+        self.cbox_available_control_screens.addItems([i.name() for i in self.available_screens])
+        self.cbox_available_control_screens.currentIndexChanged.connect(self.__updateMainScreen)
+        self.cbox_available_control_screens.setCurrentIndex(0)
 
-        self.btn_testImage_openFile.clicked.connect(self.openTestImage)
-        self.btn_calibrationImage_openFile.clicked.connect(self.openCalibrationImage)
+        self.btn_openfile_test_image.clicked.connect(self.loadTestImage)
+        self.btn_openfile_fmatch_pattern.clicked.connect(self.loadFMatchPattern)
 
-        self.btn_testImage_project.clicked.connect(self.projectTestImage)
-        self.btn_testImage_projectWarped.clicked.connect(self.projectTestImageDistorted)
+        self.btn_project_test_image.clicked.connect(self.projectTestImage)
+        self.btn_project_warped_test_image.clicked.connect(self.projectTestImageWarped)
 
-        self.btn_surface_showSelection.clicked.connect(self.showSelectedSurface)
-        self.btn_screen1_showFMatch.clicked.connect(self.showFeatureMatch)
+        self.btn_preview_camera_roi.clicked.connect(self.previewCameraRoi)
+        self.btn_preview_fmatch.clicked.connect(self.previewFeatureMatch)
 
         self.btn_preview_aruco_tracker.clicked.connect(self.previewArucoTracker)
-        self.btn_show_aruco_tracker.clicked.connect(self.startArucoTracker)
+        self.btn_start_aruco_tracker.clicked.connect(self.startArucoTracker)
         self.btn_preview_mmpose_tracker.clicked.connect(self.previewPoseTracker)
-        self.btn_show_mmpose_tracker.clicked.connect(self.startPoseTracker)
+        self.btn_start_mmpose_tracker.clicked.connect(self.startPoseTracker)
         
-        self.btn_holdSelector.clicked.connect(self.startHoldManualSelection)
-        self.btn_holdDetection.clicked.connect(self.startHoldDetection)
-        self.btn_holdsDelete.clicked.connect(self.clearHolds)
-        self.btn_projectHolds.clicked.connect(self.projectHolds)
-        self.btn_show_hold_interaction.clicked.connect(self.startHoldInteraction)
+        self.btn_open_hold_editor.clicked.connect(self.showHoldEditor)
+        self.btn_open_hold_detection.clicked.connect(self.showHoldAutoDetection)
+        self.btn_delete_holds.clicked.connect(self.clearHolds)
+        self.btn_project_holds.clicked.connect(self.projectHolds)
         
-        self.btn_regularized_rotate.clicked.connect(self.startRegularizedHorizontal)
-
-        self.action_render_preview.toggled.connect(self.setRenderLivePreviews)
+        self.act_set_render_previews.toggled.connect(self.setRenderLivePreviews)
         self.setRenderLivePreviews()
-        self.action_clearAll.triggered.connect(self.__loadResources)
+        self.act_clear_all_data.triggered.connect(self.__loadResources)
 
-        self.action_saveRefImages.triggered.connect(self.saveReferenceImages)
-        self.action_saveRefVideo.triggered.connect(self.saveReferenceVideo)
+        self.act_savefile_reference_images.triggered.connect(self.saveReferenceImages)
+        self.act_savefile_reference_video.triggered.connect(self.saveReferenceVideo)
 
-        self.action_create_boulder.triggered.connect(self.createBoulder)
-        self.action_start_boulder.triggered.connect(self.startBoulder)
-        self.action_delete_boulder.triggered.connect(self.deleteBoulder)
+        self.act_open_boulder_creator.triggered.connect(self.showBoulderCreator)
+        self.act_delete_boulder.triggered.connect(self.deleteBoulder)
+        self.act_start_boulder.triggered.connect(self.startBoulder)
+        self.act_start_free_climbing.triggered.connect(self.startFreeClimbing)
 
-        self.action_saveSurfaceHolds.triggered.connect(self.createSaveFile)
-        self.action_loadSurfaceHolds.triggered.connect(self.loadSaveFile)
+        self.act_savefile_sroi_and_holds.triggered.connect(self.createSaveFile)
+        self.act_openfile_sroi_and_holds.triggered.connect(self.loadSaveFile)
 
     def __updateCamera(self): 
-        self.camera.setCamera(QCamera(self.available_cameras[self.cBox_camera.currentIndex()]),self.cBox_camera.currentIndex())
-        self.table_camera_size.setItem(0,1,QTableWidgetItem(str(self.camera.getSize().width())))
-        self.table_camera_size.setItem(1,1,QTableWidgetItem(str(self.camera.getSize().height())))
+        self.camera.setCamera(QCamera(self.available_cameras[self.cbox_available_cameras.currentIndex()]),self.cbox_available_cameras.currentIndex())
+        self.tbl_size_camera.setItem(0,1,QTableWidgetItem(str(self.camera.getSize().width())))
+        self.tbl_size_camera.setItem(1,1,QTableWidgetItem(str(self.camera.getSize().height())))
 
     def __updateProjectorScreen(self): 
-        screen = self.available_screens[self.cBox_screen1.currentIndex()]
-        self.table_screen1_size.setItem(0,1,QTableWidgetItem(str(screen.size().width())))
-        self.table_screen1_size.setItem(1,1,QTableWidgetItem(str(screen.size().height())))
+        screen = self.available_screens[self.cbox_available_projector_screens.currentIndex()]
+        self.tbl_size_projector.setItem(0,1,QTableWidgetItem(str(screen.size().width())))
+        self.tbl_size_projector.setItem(1,1,QTableWidgetItem(str(screen.size().height())))
         self.projector.setScreenObj(screen)
 
     def __updateMainScreen(self): 
-        self.camera_preview.setScreenObj(self.available_screens[self.cBox_controlScreen.currentIndex()])
+        self.wdw_preview.setScreenObj(self.available_screens[self.cbox_available_control_screens.currentIndex()])
 
     def closeEvent(self, event):
         plt.close('all')
@@ -157,7 +154,7 @@ class MainWindow(QMainWindow):
         dialog = QFileDialog()
         dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
         dialog.setNameFilter("Images (*.pkl)")
-        dialog.setDirectory('./')
+        dialog.setDirectory('./saves/')
         dialog.setViewMode(QFileDialog.ViewMode.Detail)
         if dialog.exec():
             fileNames = dialog.selectedFiles()
@@ -167,11 +164,11 @@ class MainWindow(QMainWindow):
                 roi = pickle.load(inp)
                 size = pickle.load(inp)
                 self.surface.setSurfaceParametres(roi,size[0],size[1])
-            self.updateCalibrationTable(self.table_camera_calibration, self.surface.getWallRoiSurface())
-            self.updateSurfacePreview()
+            self.updateRoiTable(self.tbl_roi_camera, self.surface.getWallRoiSurface())
+            self.updateFrontViewPreview()
 
     def createSaveFile(self):
-        directory = QFileDialog.getExistingDirectory(self, "Open Directory","./")
+        directory = QFileDialog.getExistingDirectory(self, "Open Directory","./saves/")
         if directory != '':
             with open(directory + '/save.pkl', 'wb') as output:
                 pickle.dump(self.surface.getHolds(), output, pickle.HIGHEST_PROTOCOL)
@@ -211,7 +208,7 @@ class MainWindow(QMainWindow):
         thread.start()
 
 #  GUI HELPERS  ----------------------------------------------------  #
-    def setImagePreview(self, i, qLabel):  #accepts file path, Qimage or CVimage
+    def setImageLblPreview(self, i, qLabel):  #accepts file path, Qimage or CVimage
         if isinstance(i, QImage) or isinstance(i, str) : 
             img = QPixmap(i)
         elif isinstance(i, np.ndarray):
@@ -221,7 +218,7 @@ class MainWindow(QMainWindow):
         qLabel.setPixmap(img.scaled(qLabel.size().width(), qLabel.size().height(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         qLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-    def openImage(self): 
+    def openImageFile(self):
         dialog = QFileDialog()
         dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
         dialog.setNameFilter("Images (*.png *.jpg)")
@@ -231,71 +228,71 @@ class MainWindow(QMainWindow):
             fileNames = dialog.selectedFiles()
             return str(Path(fileNames[0]))
 
-    def openTestImage(self): 
-        path = self.openImage()
+    def loadTestImage(self):
+        path = self.openImageFile()
         if path is None: return
         self.file_test_image = path
-        self.setImagePreview(self.file_test_image, self.label_testImage)
+        self.setImageLblPreview(self.file_test_image, self.lbl_preview_test_image)
 
-    def openCalibrationImage(self):
-        path = self.openImage()
+    def loadFMatchPattern(self):
+        path = self.openImageFile()
         if path is None: return 
-        self.file_feature_match_pattern = path
-        self.setImagePreview(self.file_feature_match_pattern, self.label_calibrationImage)
+        self.file_fmatch_pattern = path
+        self.setImageLblPreview(self.file_fmatch_pattern, self.lbl_preview_fmatch_pattern)
 
-    def updateSurfacePreview(self):
+    def updateFrontViewPreview(self):
         if self.surface.getHomographyCS() is None:
-            reference_image_masked = cv2.bitwise_and(self.reference_image, self.surface.getMaskCamera())
-            self.setImagePreview(reference_image_masked, self.label_holdLabels)
+            reference_image_masked = cv2.bitwise_and(self.img_reference, self.surface.getMaskCamera())
+            self.setImageLblPreview(reference_image_masked, self.lbl_preview_surface)
             return
 
-        self.reference_image_reg = cv2.warpPerspective(self.reference_image, self.surface.getHomographyCS(),
-                                                       self.surface.getSizeSurface())
-        self.reference_image_reg = cv2.bitwise_and(self.reference_image_reg, self.surface.getMaskSurface())
-        self.updateTableRegularizedSize(self.surface.getSizeSurface())
+        self.img_reference_frontview = cv2.warpPerspective(self.img_reference, self.surface.getHomographyCS(),
+                                                           self.surface.getSizeSurface())
+        self.img_reference_frontview = cv2.bitwise_and(self.img_reference_frontview, self.surface.getMaskSurface())
+        self.updateFrontViewSizeTable(self.surface.getSizeSurface())
         
-        paintedHolds = util.paintRectangles(self.reference_image_reg.copy(), self.surface.getHolds())
-        self.setImagePreview(paintedHolds, self.label_holdLabels)
+        painted_holds = util.paintRectangles(self.img_reference_frontview.copy(), self.surface.getHolds())
+        self.setImageLblPreview(painted_holds, self.lbl_preview_surface)
 
-    def updateTableRegularizedSize(self,size): 
+    def updateFrontViewSizeTable(self, size):
         self.table_surface1_size.setItem(0,1,QTableWidgetItem(str(size[0])))
         self.table_surface1_size.setItem(1,1,QTableWidgetItem(str(size[1])))
 
-    def updateCalibrationTable(self, table, points): 
-        table.setItem(0,0,QTableWidgetItem(str(points[0])))
-        table.setItem(1,0,QTableWidgetItem(str(points[1])))
-        table.setItem(1,1,QTableWidgetItem(str(points[2])))
-        table.setItem(0,1,QTableWidgetItem(str(points[3])))
+    def updateRoiTable(self, table, roi):
+        table.setItem(0, 0, QTableWidgetItem(str(roi[0])))
+        table.setItem(1, 0, QTableWidgetItem(str(roi[1])))
+        table.setItem(1, 1, QTableWidgetItem(str(roi[2])))
+        table.setItem(0, 1, QTableWidgetItem(str(roi[3])))
 
     def setRenderLivePreviews(self):
-        self.render_previews = self.action_render_preview.isChecked()
+        self.render_previews = self.act_set_render_previews.isChecked()
 
 #  DATA PREVIEWS  ----------------------------------------------------  #
-    def startCameraPreview(self):
-        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.camera_preview.setImage])
-        self.startWindowThread(thread=self.camera_preview, close_slots=[self.camera.stop])
+    def previewCamera(self):
+        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.wdw_preview.setImage])
+        self.startWindowThread(thread=self.wdw_preview, close_slots=[self.camera.stop])
 
-    def showSelectedSurface(self): 
-        if self.reference_image is None: return
+    def previewCameraRoi(self):
+        if self.img_reference is None: return
 
-        painted = util.paintSelection(self.reference_image.copy(), self.surface.getWallRoiCamera())
+        painted = util.paintSelection(self.img_reference.copy(), self.surface.getWallRoiCamera())
         rgb = cv2.cvtColor(painted, cv2.COLOR_BGR2RGB) #matlplotlob uses RGB and opencv BGR
         plt.figure()
         plt.imshow(rgb, 'gray')
         plt.show()
 
-    def showFeatureMatch(self): 
-        if self.feature_matches_image is None: return
+    def previewFeatureMatch(self):
+        if self.img_feature_matches is None: return
 
         plt.figure()
-        plt.imshow(self.feature_matches_image, 'gray')
+        plt.imshow(self.img_feature_matches, 'gray')
         plt.show()
 
     def projectHolds(self):
             if self.surface.getWallRoiCamera() == []: return
             if self.surface.getWallRoiProjector() == []: return
 
-            img = np.zeros_like(self.reference_image_reg)
+            img = np.zeros_like(self.img_reference_frontview)
             util.paintRectangles(img, self.surface.getHolds(), (255,255,255), -1)
             img = cv2.bitwise_and(img, self.surface.getMaskSurface())
             projection = cv2.warpPerspective(img, self.surface.getHomographySP(), self.surface.getSizeProjector())
@@ -309,7 +306,7 @@ class MainWindow(QMainWindow):
         self.projector.setImage(qImg)
         self.projector.start()
 
-    def projectTestImageDistorted(self): 
+    def projectTestImageWarped(self):
         if self.surface.getWallRoiProjector() == []: return
 
         img = cv2.imread(self.file_test_image)
@@ -327,38 +324,38 @@ class MainWindow(QMainWindow):
 #  SURFACE CALIBRATION  ----------------------------------------------------  #
     def startCameraSurfaceDetection(self): 
         self.projector.setImage(None)
-        self.camera_calibrator = ProjectionAreaSelection(self.available_screens[self.cBox_controlScreen.currentIndex()], False)
-        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.camera_calibrator.setImage])
-        self.startSelectionThread(self.camera_calibrator, close_slots=[self.projector.stop], done_slots=[self.updateCameraSurfaceSelection], click_slots=[self.camera.stop])
+        self.wdw_windowed_area_selector = ProjectionAreaSelection(self.available_screens[self.cbox_available_control_screens.currentIndex()], False)
+        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.wdw_windowed_area_selector.setImage])
+        self.startSelectionThread(self.wdw_windowed_area_selector, close_slots=[self.projector.stop], done_slots=[self.updateCameraSurfaceSelection], click_slots=[self.camera.stop])
         self.startWindowThread(thread=self.projector, close_slots=[])
 
     def updateCameraSurfaceSelection(self, w, h, p): 
         self.surface.setCameraParametres(p, w, h)
-        self.updateCalibrationTable(self.table_surface_calibration, self.surface.getWallRoiCamera())
-        self.reference_image = self.camera.getLastFrame()
-        self.updateSurfacePreview()
-        if self.camera_calibrator:  self.camera_calibrator.deleteLater()
-        self.camera_calibrator = None
+        self.updateRoiTable(self.tbl_roi_frontview, self.surface.getWallRoiCamera())
+        self.img_reference = self.camera.getLastFrame()
+        self.updateFrontViewPreview()
+        if self.wdw_windowed_area_selector:  self.wdw_windowed_area_selector.deleteLater()
+        self.wdw_windowed_area_selector = None
 
     def startManualProjectorSurfaceDetection(self): 
-        self.projector_calibrator = ProjectionAreaSelection(self.available_screens[self.cBox_screen1.currentIndex()], True)
+        self.projector_calibrator = ProjectionAreaSelection(self.available_screens[self.cbox_available_projector_screens.currentIndex()], True)
         self.startSelectionThread(self.projector_calibrator, close_slots=[], done_slots=[self.updateProjectorSurfaceSelection], click_slots=[])
 
     def startAutoProjectorSurfaceDetection(self): 
         if self.surface.getWallRoiCamera() == []: return
 
-        img = cv2.imread(self.file_feature_match_pattern, cv2.IMREAD_COLOR)
+        img = cv2.imread(self.file_fmatch_pattern, cv2.IMREAD_COLOR)
         self.feature_match_pattern = img[0:self.projector.getSize().height(),0:self.projector.getSize().width()].copy()
         self.projector.setImage(util.QimageFromCVimage(self.feature_match_pattern))
 
         self.startWindowThread(thread=self.projector, close_slots=[])
-        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.camera_preview.setImage])
-        self.startWindowThread(thread=self.camera_preview, close_slots=[self.camera.stop, self.projector.stop, self.helperAutoProjectorSurfaceSelection])
+        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.wdw_preview.setImage])
+        self.startWindowThread(thread=self.wdw_preview, close_slots=[self.camera.stop, self.projector.stop, self.helperAutoProjectorSurfaceSelection])
 
     def helperAutoProjectorSurfaceSelection(self): 
-        self.feature_match_frame = cv2.bitwise_and(self.camera.getLastFrame(), self.surface.getMaskCamera())
+        self.img_fmatch_frame = cv2.bitwise_and(self.camera.getLastFrame(), self.surface.getMaskCamera())
 
-        H, self.feature_matches_image = feature_match.featureMatching(self.feature_match_frame, self.feature_match_pattern)
+        H, self.img_feature_matches = feature_match.featureMatching(self.img_fmatch_frame, self.feature_match_pattern)
         
         if H is None: return
         pts = cv2.perspectiveTransform(np.array([self.surface.getWallRoiCamera()], dtype=np.float32), H)
@@ -367,7 +364,7 @@ class MainWindow(QMainWindow):
 
     def updateProjectorSurfaceSelection(self, w, h, p): 
         self.surface.setProjectorParametres(p, w, h)
-        self.updateCalibrationTable(self.table_screen1_calibration, self.surface.getWallRoiProjector())
+        self.updateRoiTable(self.tbl_roi_projector, self.surface.getWallRoiProjector())
         if self.projector_calibrator: self.projector_calibrator.deleteLater()
         self.projector_calibrator = None
 
@@ -381,10 +378,10 @@ class MainWindow(QMainWindow):
 
         self.startWindowThread(thread=self.projector, close_slots=[])
         self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_aruco.detect])
-        self.startTrackerThread(self.tracker_aruco, preview_slots=[self.camera_preview.setImage], detection_slots=[], data_slots=[])
-        self.startWindowThread(thread=self.camera_preview, close_slots=[self.camera.stop, self.projector.stop, self.updateFrontViewSelection])
+        self.startTrackerThread(self.tracker_aruco, preview_slots=[self.wdw_preview.setImage], detection_slots=[], data_slots=[])
+        self.startWindowThread(thread=self.wdw_preview, close_slots=[self.camera.stop, self.projector.stop, self.updateFrontViewRoi])
 
-    def updateFrontViewSelection(self):
+    def updateFrontViewRoi(self):
         W = self.tracker_aruco.detect(self.camera.getLastFrame())[1]
         if W == []: return
 
@@ -397,61 +394,61 @@ class MainWindow(QMainWindow):
         bb = algebra.get2DBoundingBox(new_pts[0])
 
         self.surface.setSurfaceParametres(new_pts[0], int(bb[0]), int(bb[1]))
-        
-        self.updateCalibrationTable(self.table_camera_calibration, self.surface.getWallRoiSurface())
-        self.updateSurfacePreview()
 
-        if self.camera_calibrator:  self.camera_calibrator.deleteLater()
-        self.camera_calibrator = None
+        self.updateRoiTable(self.tbl_roi_camera, self.surface.getWallRoiSurface())
+        self.updateFrontViewPreview()
 
-#  SURFACE HORIZONATAL CORRECTION  ----------------------------------------------------  #
-    def startRegularizedHorizontal(self): 
+        if self.wdw_windowed_area_selector:  self.wdw_windowed_area_selector.deleteLater()
+        self.wdw_windowed_area_selector = None
+
+#  FrontView HORIZON CORRECTION  ----------------------------------------------------  #
+    def startFrontViewHorizon(self):
         if self.surface.getWallRoiCamera() == []: return
         if self.surface.getWallRoiProjector() == []: return
 
-        self.camera_calibrator = ProjectionAreaSelection(self.available_screens[self.cBox_controlScreen.currentIndex()], False, 2)
-        self.camera_calibrator.setImage(util.QimageFromCVimage(self.reference_image_reg))
-        self.startSelectionThread(self.camera_calibrator, close_slots=[], done_slots=[self.updateRegularizedHorizontal], click_slots=[])
+        self.wdw_windowed_area_selector = ProjectionAreaSelection(self.available_screens[self.cbox_available_control_screens.currentIndex()], False, 2)
+        self.wdw_windowed_area_selector.setImage(util.QimageFromCVimage(self.img_reference_frontview))
+        self.startSelectionThread(self.wdw_windowed_area_selector, close_slots=[], done_slots=[self.updateFrontViewHorizon], click_slots=[])
 
-    def updateRegularizedHorizontal(self, w, h, p):
+    def updateFrontViewHorizon(self, w, h, p):
         new_pts = algebra.rotatePtsToHorizontalLine(np.array([self.surface.getWallRoiSurface()], dtype=np.float32), p[0], p[1])
         new_pts = algebra.translatePtsPositive(new_pts)
         new_pts = algebra.scalePtsToLimits(new_pts, self.surface.getMaxSizeSurface())
         bb = algebra.get2DBoundingBox(new_pts[0])
 
         self.surface.setSurfaceParametres(new_pts[0], int(bb[0]), int(bb[1]))
-        self.updateCalibrationTable(self.table_camera_calibration, self.surface.getWallRoiSurface())
-        self.updateSurfacePreview()
+        self.updateRoiTable(self.tbl_roi_camera, self.surface.getWallRoiSurface())
+        self.updateFrontViewPreview()
 
 #  HOLD SELECTION  ----------------------------------------------------  #
     def clearHolds(self):
         self.surface.setHolds([])
-        self.updateSurfacePreview()
+        self.updateFrontViewPreview()
 
     def setHolds(self, holds):
         self.surface.setHolds(holds)
-        self.updateSurfacePreview()
+        self.updateFrontViewPreview()
 
-    def startHoldManualSelection(self): 
-        if self.reference_image_reg is None: return
+    def showHoldEditor(self):
+        if self.img_reference_frontview is None: return
 
-        self.hold_selector = ProjectionPointSelection(self.available_screens[self.cBox_controlScreen.currentIndex()], False)
-        self.hold_selector.setImage(self.reference_image_reg)
-        self.hold_selector.setPoints(self.surface.getHolds())
-        self.startSelectionThread(self.hold_selector, close_slots=[], done_slots=[self.setHolds], click_slots=[])
+        self.wdw_hold_editor = ProjectionPointSelection(self.available_screens[self.cbox_available_control_screens.currentIndex()], False)
+        self.wdw_hold_editor.setImage(self.img_reference_frontview)
+        self.wdw_hold_editor.setPoints(self.surface.getHolds())
+        self.startSelectionThread(self.wdw_hold_editor, close_slots=[], done_slots=[self.setHolds], click_slots=[])
 
-    def startHoldDetection(self):
-        if self.reference_image_reg is None: return
+    def showHoldAutoDetection(self):
+        if self.img_reference_frontview is None: return
 
-        self.dialog = HoldDetectorDialog(self.reference_image_reg)
-        self.startGenericThread(self.dialog, self.dialog.signal_done, slots=[self.setHolds])
+        self.wdw_dialog = HoldDetectorDialog(self.img_reference_frontview)
+        self.startGenericThread(self.wdw_dialog, self.wdw_dialog.signal_done, slots=[self.setHolds])
 
 #  LIVE VIDEO ANALISIS  ----------------------------------------------------  #
     def previewArucoTracker(self):
-        self.camera_preview.setImage(self.reference_image_reg)
+        self.wdw_preview.setImage(self.img_reference_frontview)
         self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_aruco.detect])
-        self.startTrackerThread(self.tracker_aruco, preview_slots=[self.camera_preview.setImageWithResize], detection_slots=[], data_slots=[])
-        self.startWindowThread(thread=self.camera_preview, close_slots=[self.camera.stop])
+        self.startTrackerThread(self.tracker_aruco, preview_slots=[self.wdw_preview.setImageWithResize], detection_slots=[], data_slots=[])
+        self.startWindowThread(thread=self.wdw_preview, close_slots=[self.camera.stop])
 
     def startArucoTracker(self):
         if self.surface.getWallRoiCamera() == []: return
@@ -461,20 +458,20 @@ class MainWindow(QMainWindow):
 
         self.tracker_aruco.setRenderPreview(self.render_previews)
         if self.render_previews: 
-            self.startWindowThread(thread=self.camera_preview, close_slots=[self.projector.close])
+            self.startWindowThread(thread=self.wdw_preview, close_slots=[self.projector.close])
 
-        self.camera_preview.setImage(self.reference_image_reg)
+        self.wdw_preview.setImage(self.img_reference_frontview)
         self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_aruco.detect])
-        self.startTrackerThread(self.tracker_aruco, preview_slots=[self.camera_preview.setImageWithResize], detection_slots=[self.perspective_warper.apply], data_slots=[])
+        self.startTrackerThread(self.tracker_aruco, preview_slots=[self.wdw_preview.setImageWithResize], detection_slots=[self.perspective_warper.apply], data_slots=[])
         self.perspective_warper.signal_done.connect(self.projector.setImageWithoutResize)
         self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop])
 
     def previewPoseTracker(self):
         self.tracker_mmpose.setRenderPreview(True)
-        self.camera_preview.setImage(self.reference_image_reg)
+        self.wdw_preview.setImage(self.img_reference_frontview)
         self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_mmpose.detect])
-        self.startTrackerThread(self.tracker_mmpose, preview_slots=[self.camera_preview.setImageWithResize], detection_slots=[], data_slots=[])
-        self.startWindowThread(thread=self.camera_preview, close_slots=[self.camera.stop])
+        self.startTrackerThread(self.tracker_mmpose, preview_slots=[self.wdw_preview.setImageWithResize], detection_slots=[], data_slots=[])
+        self.startWindowThread(thread=self.wdw_preview, close_slots=[self.camera.stop])
 
     def startPoseTracker(self):
         if self.surface.getWallRoiCamera() == []: return
@@ -484,41 +481,41 @@ class MainWindow(QMainWindow):
 
         self.tracker_mmpose.setRenderPreview(self.render_previews)
         if self.render_previews: 
-            self.startWindowThread(thread=self.camera_preview, close_slots=[self.projector.close])
+            self.startWindowThread(thread=self.wdw_preview, close_slots=[self.projector.close])
 
-        self.camera_preview.setImage(self.reference_image_reg)
+        self.wdw_preview.setImage(self.img_reference_frontview)
         self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_mmpose.detect])
-        self.startTrackerThread(self.tracker_mmpose, preview_slots=[self.camera_preview.setImageWithResize], detection_slots=[self.perspective_warper.apply], data_slots=[])
+        self.startTrackerThread(self.tracker_mmpose, preview_slots=[self.wdw_preview.setImageWithResize], detection_slots=[self.perspective_warper.apply], data_slots=[])
         self.perspective_warper.signal_done.connect(self.projector.setImageWithoutResize)
         self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop])
 
 # INTERACTIVE EXPERIENCES  ----------------------------------------------------  #
 
-    def startHoldInteraction(self):
+    def startFreeClimbing(self):
         if self.surface.getWallRoiCamera() == []: return
         if self.surface.getWallRoiProjector() == []: return
 
-        self.hold_interaction_traker = HoldInteractionTrack(self.surface)
+        self.tracker_free_climbing = FreeClimbingTracker(self.surface)
 
         self.tracker_mmpose.setRenderPreview(self.render_previews)
-        self.hold_interaction_traker.setRenderPreview(self.render_previews)
+        self.tracker_free_climbing.setRenderPreview(self.render_previews)
         if self.render_previews:
-            self.startWindowThread(thread=self.camera_preview, close_slots=[self.projector.close])
+            self.startWindowThread(thread=self.wdw_preview, close_slots=[self.projector.close])
         
-        self.camera_preview.setImage(self.reference_image_reg)
+        self.wdw_preview.setImage(self.img_reference_frontview)
         self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_mmpose.detect])
-        self.startTrackerThread(self.tracker_mmpose, preview_slots=[], detection_slots=[], data_slots=[self.hold_interaction_traker.detect])
-        self.startTrackerThread(self.hold_interaction_traker, preview_slots=[self.camera_preview.setImageWithResize], detection_slots=[self.projector.setImageWithoutResize], data_slots=[])
+        self.startTrackerThread(self.tracker_mmpose, preview_slots=[], detection_slots=[], data_slots=[self.tracker_free_climbing.detect])
+        self.startTrackerThread(self.tracker_free_climbing, preview_slots=[self.wdw_preview.setImageWithResize], detection_slots=[self.projector.setImageWithoutResize], data_slots=[])
         self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop])
 
-    def createBoulder(self):
-        if self.reference_image_reg is None: return
-        self.boulder_creator = BoulderCreator(self.available_screens[self.cBox_controlScreen.currentIndex()], False, self.reference_image_reg, self.surface.getHolds(), self.boulder)
-        self.startSelectionThread(self.boulder_creator, close_slots=[], done_slots=[self.updateBoulder], click_slots=[])
+    def showBoulderCreator(self):
+        if self.img_reference_frontview is None: return
+        self.wdw_boulder_creator = BoulderCreator(self.available_screens[self.cbox_available_control_screens.currentIndex()], False, self.img_reference_frontview, self.surface.getHolds(), self.boulder)
+        self.startSelectionThread(self.wdw_boulder_creator, close_slots=[], done_slots=[self.updateBoulder], click_slots=[])
 
     def updateBoulder(self, b):
         self.boulder = b
-        if self.boulder_creator:  self.boulder_creator.deleteLater()
+        if self.wdw_boulder_creator:  self.wdw_boulder_creator.deleteLater()
 
     def startBoulder(self):
         if self.surface.getWallRoiCamera() == []: return
@@ -531,12 +528,12 @@ class MainWindow(QMainWindow):
         self.tracker_mmpose.setRenderPreview(self.render_previews)
         self.boulder_traker.setRenderPreview(self.render_previews)
         if self.render_previews:
-            self.startWindowThread(thread=self.camera_preview, close_slots=[self.projector.close])
+            self.startWindowThread(thread=self.wdw_preview, close_slots=[self.projector.close])
         
-        self.camera_preview.setImage(self.reference_image_reg)
+        self.wdw_preview.setImage(self.img_reference_frontview)
         self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_mmpose.detect])
         self.startTrackerThread(self.tracker_mmpose, preview_slots=[], detection_slots=[], data_slots=[self.boulder_traker.detect])
-        self.startTrackerThread(self.boulder_traker, preview_slots=[self.camera_preview.setImageWithResize], detection_slots=[self.projector.setImageWithoutResize], data_slots=[])
+        self.startTrackerThread(self.boulder_traker, preview_slots=[self.wdw_preview.setImageWithResize], detection_slots=[self.projector.setImageWithoutResize], data_slots=[])
         self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop])
 
     def deleteBoulder(self):
@@ -546,29 +543,29 @@ class MainWindow(QMainWindow):
     def saveReferenceImages(self): 
         directory = QFileDialog.getExistingDirectory(self, "Open Directory","./")
         if directory != '':
-            if self.reference_image is not None: 
-                cv2.imwrite(directory + "/reference_img.jpg", self.reference_image)
+            if self.img_reference is not None:
+                cv2.imwrite(directory + "/img_reference.jpg", self.img_reference)
                 if self.surface.getWallRoiCamera() != []:
-                    regularized = cv2.warpPerspective(self.reference_image, self.surface.getHomographyCS(),
-                                                      self.surface.getSizeSurface())
-                    regularized = cv2.bitwise_and(regularized, self.surface.getMaskSurface())
-                    cv2.imwrite(directory + "/reference_img_reg.jpg", regularized)
+                    frontview = cv2.warpPerspective(self.img_reference, self.surface.getHomographyCS(),
+                                                    self.surface.getSizeSurface())
+                    frontview = cv2.bitwise_and(frontview, self.surface.getMaskSurface())
+                    cv2.imwrite(directory + "/img_reference_frontview.jpg", frontview)
             
-            if self.feature_match_frame is not None: 
-                cv2.imwrite(directory + "/feature_match_frame.jpg", self.feature_match_frame)
+            if self.img_fmatch_frame is not None:
+                cv2.imwrite(directory + "/img_fmatch_frame.jpg", self.img_fmatch_frame)
                 if self.surface.getWallRoiCamera() != []:
-                    regularized = cv2.warpPerspective(self.feature_match_frame, self.surface.getHomographyCS(),
-                                                      self.surface.getSizeSurface())
-                    cv2.imwrite(directory + "/feature_match_frame_reg.jpg", regularized)
+                    frontview = cv2.warpPerspective(self.img_fmatch_frame, self.surface.getHomographyCS(),
+                                                    self.surface.getSizeSurface())
+                    cv2.imwrite(directory + "/img_fmatch_frame_frontview.jpg", frontview)
 
             if self.feature_match_pattern is not None: 
-                cv2.imwrite(directory + "/feature_match_pattern.jpg", self.feature_match_pattern)
+                cv2.imwrite(directory + "/img_fmatch_pattern.jpg", self.feature_match_pattern)
 
             if self.surface.getWallRoiProjector() != []:
                 img = np.zeros((self.surface.getSizeSurface()[1], self.surface.getSizeSurface()[0], 3), dtype=np.uint8)
                 img.fill(255)
-                regularized = cv2.warpPerspective(img, self.surface.getHomographySP(), self.surface.getSizeProjector())
-                cv2.imwrite(directory + "/homography_representation.jpg", regularized)
+                frontview = cv2.warpPerspective(img, self.surface.getHomographySP(), self.surface.getSizeProjector())
+                cv2.imwrite(directory + "/img_projector_roi.jpg", frontview)
             
             print("Images written to: " + directory)
 
@@ -583,9 +580,9 @@ class MainWindow(QMainWindow):
     def saveReferenceVideoHelper(self,frame): 
         cv2.imwrite(self.vid_directory + "/vid_" + str(self.vid_counter) + ".jpg", frame)
         if self.surface.getWallRoiCamera() is not None:
-            regularized = cv2.warpPerspective(frame, self.surface.getHomographyCS(), self.surface.getSizeSurface())
-            regularized = cv2.bitwise_and(regularized, self.surface.getMaskSurface())
-            cv2.imwrite(self.vid_directory + "/vid_reg_" + str(self.vid_counter) + ".jpg", regularized)
+            frontview = cv2.warpPerspective(frame, self.surface.getHomographyCS(), self.surface.getSizeSurface())
+            frontview = cv2.bitwise_and(frontview, self.surface.getMaskSurface())
+            cv2.imwrite(self.vid_directory + "/vid_frontview_" + str(self.vid_counter) + ".jpg", frontview)
         self.vid_counter += 1
 
 app = QApplication(sys.argv)
