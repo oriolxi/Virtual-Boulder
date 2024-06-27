@@ -338,8 +338,8 @@ class MainWindow(QMainWindow):
         self.wdw_windowed_area_selector = None
 
     def startManualProjectorSurfaceDetection(self): 
-        self.projector_calibrator = ProjectionAreaSelection(self.available_screens[self.cbox_available_projector_screens.currentIndex()], True)
-        self.startSelectionThread(self.projector_calibrator, close_slots=[], done_slots=[self.updateProjectorSurfaceSelection], click_slots=[])
+        self.wdw_projected_area_selector = ProjectionAreaSelection(self.available_screens[self.cbox_available_projector_screens.currentIndex()], True)
+        self.startSelectionThread(self.wdw_projected_area_selector, close_slots=[], done_slots=[self.updateProjectorSurfaceSelection], click_slots=[])
 
     def startAutoProjectorSurfaceDetection(self): 
         if self.surface.getWallRoiCamera() == []: return
@@ -365,8 +365,8 @@ class MainWindow(QMainWindow):
     def updateProjectorSurfaceSelection(self, w, h, p): 
         self.surface.setProjectorParametres(p, w, h)
         self.updateRoiTable(self.tbl_roi_projector, self.surface.getWallRoiProjector())
-        if self.projector_calibrator: self.projector_calibrator.deleteLater()
-        self.projector_calibrator = None
+        if self.wdw_projected_area_selector: self.wdw_projected_area_selector.deleteLater()
+        self.wdw_projected_area_selector = None
 
     def startFrontViewSurfaceDetection(self):
         if self.surface.getWallRoiCamera() == []: return
