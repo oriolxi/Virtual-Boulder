@@ -15,6 +15,7 @@ import util
 import algebra
 from projector import Projection, ProjectionAreaSelection, ProjectionPointSelection, BoulderCreator
 from surface import Surface
+from boulder import Boulder
 import algorithm_feature_match as feature_match
 import algorithm_homography_rank as homography_rank
 from thread_camera import Camera
@@ -49,7 +50,7 @@ class MainWindow(QMainWindow):
         self.camera = Camera(QCamera(self.available_cameras[0]),0)
         self.surface = Surface()
         self.projector = Projection(self.available_screens[0], True)
-        self.boulder = []
+        self.boulder = None
 
         self.wdw_preview = Projection(self.available_screens[0], False)
 
@@ -127,8 +128,10 @@ class MainWindow(QMainWindow):
         self.act_start_boulder.triggered.connect(self.startBoulder)
         self.act_start_free_climbing.triggered.connect(self.startFreeClimbing)
 
-        self.act_savefile_sroi_and_holds.triggered.connect(self.createSaveFile)
-        self.act_openfile_sroi_and_holds.triggered.connect(self.loadSaveFile)
+        self.act_savefile_sroi_and_holds.triggered.connect(self.createRoiSaveFile)
+        self.act_openfile_sroi_and_holds.triggered.connect(self.loadRoiSaveFile)
+        self.act_savefile_boulder.triggered.connect(self.createBoulderSaveFile)
+        self.act_openfile_boulder.triggered.connect(self.loadBoulderSaveFile)
 
     def __updateCamera(self): 
         self.camera.setCamera(QCamera(self.available_cameras[self.cbox_available_cameras.currentIndex()]),self.cbox_available_cameras.currentIndex())
@@ -150,10 +153,10 @@ class MainWindow(QMainWindow):
 
 #   ---------------------------------------------------- WORK AREA ----------------------------------------------------  #
 
-    def loadSaveFile(self):
+    def loadRoiSaveFile(self):
         dialog = QFileDialog()
         dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
-        dialog.setNameFilter("Images (*.pkl)")
+        dialog.setNameFilter("Pickle file (*.pkl)")
         dialog.setDirectory('./saves/')
         dialog.setViewMode(QFileDialog.ViewMode.Detail)
         if dialog.exec():
@@ -167,13 +170,34 @@ class MainWindow(QMainWindow):
             self.updateRoiTable(self.tbl_roi_camera, self.surface.getWallRoiSurface())
             self.updateFrontViewPreview()
 
-    def createSaveFile(self):
+    def createRoiSaveFile(self):
         directory = QFileDialog.getExistingDirectory(self, "Open Directory","./saves/")
         if directory != '':
             with open(directory + '/save.pkl', 'wb') as output:
                 pickle.dump(self.surface.getHolds(), output, pickle.HIGHEST_PROTOCOL)
                 pickle.dump(self.surface.getWallRoiSurface(), output, pickle.HIGHEST_PROTOCOL)
                 pickle.dump(self.surface.getSizeSurface(), output, pickle.HIGHEST_PROTOCOL)
+
+    def loadBoulderSaveFile(self):
+        dialog = QFileDialog()
+        dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
+        dialog.setNameFilter("Pickle file (*.pkl)")
+        dialog.setDirectory('./saves/boulders')
+        dialog.setViewMode(QFileDialog.ViewMode.Detail)
+        if dialog.exec():
+            fileNames = dialog.selectedFiles()
+        if self.boulder is None: self.boulder = Boulder()
+        if os.path.isfile(fileNames[0]):
+            with open(fileNames[0], 'rb') as inp:
+                self.boulder.setSteps(pickle.load(inp))
+            self.updateRoiTable(self.tbl_roi_camera, self.surface.getWallRoiSurface())
+            self.updateFrontViewPreview()
+
+    def createBoulderSaveFile(self):
+        directory = QFileDialog.getExistingDirectory(self, "Open Directory","./saves/boulders")
+        if directory != '':
+            with open(directory + '/boulder.pkl', 'wb') as output:
+                pickle.dump(self.boulder.getSteps(), output, pickle.HIGHEST_PROTOCOL)
 
 #   ---------------------------------------------------- WORK AREA ----------------------------------------------------  #
 
@@ -510,6 +534,7 @@ class MainWindow(QMainWindow):
 
     def showBoulderCreator(self):
         if self.img_reference_frontview is None: return
+        if self.boulder is None: self.boulder = Boulder()
         self.wdw_boulder_creator = BoulderCreator(self.available_screens[self.cbox_available_control_screens.currentIndex()], False, self.img_reference_frontview, self.surface.getHolds(), self.boulder)
         self.startSelectionThread(self.wdw_boulder_creator, close_slots=[], done_slots=[self.updateBoulder], click_slots=[])
 
@@ -520,10 +545,9 @@ class MainWindow(QMainWindow):
     def startBoulder(self):
         if self.surface.getWallRoiCamera() == []: return
         if self.surface.getWallRoiProjector() == []: return
-        if self.boulder == []: return
+        if self.boulder is None: return
 
         self.boulder_traker = InteractiveBoulderTrack(self.surface, self.boulder)
-        self.boulder_traker.startBoulder()
 
         self.tracker_mmpose.setRenderPreview(self.render_previews)
         self.boulder_traker.setRenderPreview(self.render_previews)
@@ -537,7 +561,7 @@ class MainWindow(QMainWindow):
         self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop])
 
     def deleteBoulder(self):
-        self.boulder = []
+        self.boulder = None
 
 #  SAVE IMAGES FOR BENCHMARKING  ----------------------------------------------------  #
     def saveReferenceImages(self): 

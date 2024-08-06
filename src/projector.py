@@ -2,10 +2,11 @@ import math
 import numpy as np
 from PyQt6.QtCore import Qt, pyqtSignal, QRectF
 from PyQt6.QtGui import QPixmap, QScreen, QImage, QPainter, QPen, QBrush, QCursor
-from PyQt6.QtWidgets import QLabel, QWidget, QHBoxLayout
+from PyQt6.QtWidgets import QLabel, QWidget, QHBoxLayout, QApplication
 
 import util
 import algebra
+from boulder import Boulder, Placement, renderBoulderPreview
 
 class Projection(QWidget):
     screen = None #QScreen
@@ -279,108 +280,64 @@ class ProjectionPointSelection(Projection):
         self.signal_done.emit(points)
 
 class BoulderCreator(Projection):
-    stored_points = None #stored rectangles as a list of [x,y,w,h] (top_left corner, width, height)
-    overlay = None
-    new_overlay = None
     boulder = None
     holds = None
 
-    pen_size = 2
-    blue_pen = QPen(Qt.GlobalColor.blue, pen_size)
-    red_pen = QPen(Qt.GlobalColor.red, pen_size)
-    pen = QPen(Qt.GlobalColor.green, pen_size)
-    brush = QBrush(Qt.GlobalColor.white)
-    wc = util.Wildcard()
-
-    signal_done = pyqtSignal(list)
+    signal_done = pyqtSignal(Boulder)
     
     def __init__(self, scrn, fs, img, h, b):
         super().__init__(scrn, fs, img)
 
         self.holds = h
         self.boulder = b
-        self.setPoints(self.holds)
         self.__paintBoulder()
 
         self.setMouseTracking(True)
         self.label.setMouseTracking(True)
 
-    def __paintRectangles(self, canvas, rectangles):
-        painter = QPainter(canvas)
-        painter.setPen(self.pen)
-        for rec in rectangles: painter.drawRect(QRectF(rec[0], rec[1], rec[2], rec[3]))
-        painter.end()
-        
-        return canvas
-
-    def __isPointInsideAnyRectangle(self, point): 
-        for p in self.stored_points: 
+    def __isPointInsideHold(self, point): 
+        for p in self.holds: 
             if algebra.isPointInsideRectangle(point, p): return p
         return None
 
     def __paintBoulder(self):
-        self.new_overlay = self.overlay.copy()
-        painter = QPainter(self.new_overlay)
-        painter.setBrush(self.brush)
-
-        for move in self.boulder:
-            if move[4] == "L" or move[4] == "R":
-                pen = self.red_pen if move[4] == "R" else self.blue_pen
-                painter.setPen(pen)
-                painter.drawRect(QRectF(move[0]*self.scaling, move[1]*self.scaling, move[2]*self.scaling, move[3]*self.scaling))
-        
-            if move[4] == "LR":
-                painter.setPen(self.blue_pen)
-                painter.drawRect(QRectF(move[0]*self.scaling, move[1]*self.scaling, move[2]*self.scaling/2, move[3]*self.scaling))
-                painter.setPen(self.red_pen)
-                painter.drawRect(QRectF(move[0]*self.scaling+move[2]*self.scaling/2+self.pen_size, move[1]*self.scaling, move[2]*self.scaling/2, move[3]*self.scaling))
-            
-            painter.drawText(int(move[0]*self.scaling + move[2]*self.scaling / 3), int(move[1]*self.scaling + move[3]*self.scaling / 3), str(self.boulder.index(move)))
-        painter.end()
-
-        self.updateOverlay(self.new_overlay)
-
-    def setPoints(self, points):
-        self.stored_points = np.multiply(points, self.scaling).tolist()
-        self.__paintRectangles(self.overlay, self.stored_points)
-        self.updateOverlay(self.overlay)
-
-    def updateImage(self): 
-        super().updateImage()
-        self.overlay = QPixmap(self.screen_w, self.screen_h)
-        self.overlay.fill(Qt.GlobalColor.transparent)
-        self.new_overlay = self.overlay.copy()
-
-    def updateOverlay(self, overlay):
-        canvas = overlay.copy()
-        painter = QPainter(canvas)
-        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_DestinationOver)
-        painter.drawImage(0,0,self.image.scaled(self.screen_w, self.screen_h, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-        painter.end()
+        canvas = renderBoulderPreview(self.boulder, self.holds, self.image)
+        canvas = canvas.scaled(self.screen_w, self.screen_h, Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation) #KeepAspectRatioByExpanding is also an option
         self.label.setPixmap(canvas)
 
     def mousePressEvent(self, event):
+        # get mouse click coordinates
         point = [int(event.position().x()), int(event.position().y())]
         if point[0] is None or point[1] is None: return
-        collision = self.__isPointInsideAnyRectangle(point)
-        if collision is None: return
-        idx = self.stored_points.index(collision)
 
-        move = [self.holds[idx][0], self.holds[idx][1], self.holds[idx][2], self.holds[idx][3], self.wc]
-        if event.button() == Qt.MouseButton.LeftButton:
-            
-            if move not in self.boulder:
-                move[4] = "R"
-                self.boulder.append(move)
-            else:
-                idx = self.boulder.index(move)
-                if self.boulder[idx][4] == "R": self.boulder[idx][4] = "L"
-                elif self.boulder[idx][4] == "L": self.boulder[idx][4] = "R"
-                #elif self.boulder[idx][4] == "LR": self.boulder[idx][4] = "R"
+        # scale the coordinate to original image
+        point[0] = int(point[0] / self.scaling)
+        point[1] = int(point[1] / self.scaling)
+
+        # check if point falls inside of a hold
+        hold_idx = -1
+        for h in self.holds: 
+            if algebra.isPointInsideRectangle(point, h):
+                hold_idx = self.holds.index(h)
+        if hold_idx < 0: return
+
         if event.button() == Qt.MouseButton.RightButton:
-            if move in self.boulder:
-                self.boulder.remove(move)
-
+            self.boulder.removeStepHold(hold_idx) # remove last instance of hold from boulder
+        
+        if event.button() == Qt.MouseButton.LeftButton:
+            if self.boulder.holdInBoulder(hold_idx):
+                idx, step = self.boulder.getLastStepWithHold(hold_idx)
+                if event.modifiers() and Qt.KeyboardModifier.ShiftModifier:
+                    self.boulder.addStep(hold_idx, Placement.HAND_RIGHT)
+                elif step[1] == Placement.HAND_MATCHING:
+                    self.boulder.replaceStep(hold_idx, Placement.HAND_RIGHT, idx)
+                elif step[1] == Placement.HAND_RIGHT:
+                    self.boulder.replaceStep(hold_idx, Placement.HAND_LEFT, idx)
+                elif step[1] == Placement.HAND_LEFT:
+                    self.boulder.replaceStep(hold_idx, Placement.HAND_MATCHING, idx)
+            else:
+                self.boulder.addStep(hold_idx, Placement.HAND_RIGHT)
+           
         self.__paintBoulder()
 
     def mouseMoveEvent(self, event):

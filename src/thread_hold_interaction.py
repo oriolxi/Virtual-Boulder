@@ -5,9 +5,7 @@ from PyQt6.QtCore import QThread, pyqtSignal
 
 import util
 import algebra
-
-COLOR_RIGHT = (0, 0, 255)
-COLOR_LEFT = (255, 0, 0)
+from boulder import Placement
 
 class ClimbrTrack(QThread):
     signal_preview = pyqtSignal(np.ndarray)
@@ -16,7 +14,7 @@ class ClimbrTrack(QThread):
 
     surface = None
     accept_score = 0.6
-    overlap_score = 0.20
+    overlap_score = 0.12
     shoulder_hand_ratio = 0.35
     elbow_hand_ratio = 0.35
     min_hand_std = 40
@@ -72,19 +70,22 @@ class FreeClimbingTracker(ClimbrTrack):
 
     def __init__(self, s):
         super().__init__(s)
+        self.holds = np.array(self.surface.getHolds())
+        self.holds_idx = np.array(range(len(self.holds)))
 
     def setRenderPreview(self, b):
         self.render_preview = b
 
     def __getBestInteraction(self, point, radious, std):
         interaction = []
+        interaction_idx = -1
         if std < self.min_hand_std:
-            holds = np.array(self.surface.getHolds())
-            collisions = np.apply_along_axis(algebra.isCircleTouchingRectangle, 1, holds, circle_point=point, radious=radious)
+            collisions = np.apply_along_axis(algebra.isCircleTouchingRectangle, 1, self.holds, circle_point=point, radious=radious)
             if np.count_nonzero(collisions) > 0:
-                overlaps = np.apply_along_axis(algebra.overlapCircleRectangle, 1, holds[collisions], circle_point=point, radious=radious)
-                interaction = [ holds[collisions][np.argmax(overlaps)] ]
-        return interaction
+                overlaps = np.apply_along_axis(algebra.overlapCircleRectangle, 1, self.holds[collisions], circle_point=point, radious=radious)
+                interaction = [ self.holds[collisions][np.argmax(overlaps)] ]
+                interaction_idx = self.holds_idx[collisions][np.argmax(overlaps)]
+        return interaction, interaction_idx
 
     def detect(self, pose_data):
         keypoints = pose_data[0]
@@ -94,69 +95,53 @@ class FreeClimbingTracker(ClimbrTrack):
         img = np.zeros(shape=(surface_height, surface_width, 3), dtype=np.uint8)
         if keypoints["detection"]:
             hand_r, hand_l, std_hand_r, std_hand_l, hand_radious = self._getHands(keypoints)
+            interaction_r, idx_r = self.__getBestInteraction(hand_r, hand_radious, std_hand_r)
+            interaction_l, idx_l = self.__getBestInteraction(hand_l, hand_radious, std_hand_l)
 
-            interactions_r = self.__getBestInteraction(hand_r, hand_radious, std_hand_r)
-            interactions_l = self.__getBestInteraction(hand_l, hand_radious, std_hand_l)
+            # paint the interactions on the projected image
+            util.paintBoundingCircles(img, interaction_l + interaction_r, (255, 255, 255), -1, 0.2)
+            if idx_r == idx_l:
+                util.paintBoundingCircles(img, interaction_l, Placement.COLOR_HAND_MATCHING, 5, 0.2)
+            else:
+                util.paintBoundingCircles(img, interaction_l, Placement.COLOR_HAND_LEFT, 5, 0.2)
+                util.paintBoundingCircles(img, interaction_r, Placement.COLOR_HAND_RIGHT, 5, 0.2)
+        
+        projector_img = cv2.warpPerspective(img, self.surface.getHomographySP(), self.surface.getSizeProjector())
+        self.signal_detection.emit(projector_img)
 
-            util.paintBoundingCircles(img, interactions_r + interactions_l, (255, 255, 255), -1, 0.2)
-            util.paintBoundingCircles(img, interactions_r, COLOR_RIGHT, 5, 0.2)
-            util.paintBoundingCircles(img, interactions_l, COLOR_LEFT, 5, 0.2)
-            projector_img = cv2.warpPerspective(img, self.surface.getHomographySP(), self.surface.getSizeProjector())
-            self.signal_detection.emit(projector_img)
-
-            if self.render_preview:
-                regularized_preview = cv2.warpPerspective(frame_skeletons, self.surface.getHomographyCS(),
-                                                          self.surface.getSizeSurface())
-                regularized_preview = cv2.bitwise_and(regularized_preview, self.surface.getMaskSurface())
-                util.paintRectangles(regularized_preview, self.surface.getHolds(), (0,255,0), 2) #holds bounding boxes in green
-                util.paintRectangles(regularized_preview, interactions_r, COLOR_RIGHT, -1) #hold right interaction filled in red
-                util.paintRectangles(regularized_preview, interactions_l, COLOR_LEFT, -1) #hold left interaction filled in blue
+        if self.render_preview:
+            regularized_preview = cv2.warpPerspective(frame_skeletons, self.surface.getHomographyCS(),self.surface.getSizeSurface())
+            regularized_preview = cv2.bitwise_and(regularized_preview, self.surface.getMaskSurface())
+            util.paintRectangles(regularized_preview, self.surface.getHolds(), (0,255,0), 2) #holds bounding boxes in green
+            
+            if keypoints["detection"]:
+                if idx_r == idx_l:
+                    util.paintRectangles(regularized_preview, interaction_r, Placement.COLOR_HAND_MATCHING, -1) #fill the hold with matched hand interaction
+                else:
+                    util.paintRectangles(regularized_preview, interaction_r, Placement.COLOR_HAND_RIGHT, -1) #fill the hold with right interaction
+                    util.paintRectangles(regularized_preview, interaction_l, Placement.COLOR_HAND_LEFT, -1) #fill the hold with left interaction
+                
                 #hand with detection radious on preview
-                util.paintCircles(regularized_preview, [[hand_r, 10]], COLOR_RIGHT, -1)
-                util.paintCircles(regularized_preview, [[hand_r, hand_radious]], COLOR_RIGHT, 2)
-                util.paintCircles(regularized_preview, [[hand_l, 10]], COLOR_LEFT, -1)
-                util.paintCircles(regularized_preview, [[hand_l, hand_radious]], COLOR_LEFT, 2)
-                self.signal_preview.emit(regularized_preview)
-        else:
-            projector_img = cv2.warpPerspective(img, self.surface.getHomographySP(), self.surface.getSizeProjector())
-            self.signal_detection.emit(projector_img)
-            if self.render_preview: 
-                regularized_preview = cv2.warpPerspective(frame_skeletons, self.surface.getHomographyCS(),
-                                                          self.surface.getSizeSurface())
-                regularized_preview = cv2.bitwise_and(regularized_preview, self.surface.getMaskSurface())
-                util.paintRectangles(regularized_preview, self.surface.getHolds(), (0,255,0), 2) #holds bounding boxes in green
-                self.signal_preview.emit(regularized_preview)
-    
+                util.paintCircles(regularized_preview, [[hand_r, 10]], Placement.COLOR_HAND_RIGHT, -1)
+                util.paintCircles(regularized_preview, [[hand_r, hand_radious]], Placement.COLOR_HAND_RIGHT, 2)
+                util.paintCircles(regularized_preview, [[hand_l, 10]], Placement.COLOR_HAND_LEFT, -1)
+                util.paintCircles(regularized_preview, [[hand_l, hand_radious]], Placement.COLOR_HAND_LEFT, 2)
+            
+            self.signal_preview.emit(regularized_preview)
 
 class InteractiveBoulderTrack(ClimbrTrack):
     render_preview = True
-    boulder = []
-    progression = []
-    current_hand_l = []
-    current_hand_r = []
-
-    wc = util.Wildcard()
 
     def __init__(self, s, b):
         super().__init__(s)
         self.boulder = b
+        self.boulder.start()
+        self.current_step, self.next_step = self.boulder.getNext()
 
+        self.holds = self.surface.getHolds()
+        
     def setRenderPreview(self, b):
         self.render_preview = b
-
-    def startBoulder(self):
-        self.progression = self.boulder.copy()
-        self.current_hand_r = self.__getNextHold("R")
-        self.current_hand_l = self.__getNextHold("L")
-
-    def __getNextHold(self, hand):
-        move = [self.wc, self.wc, self.wc, self.wc, hand]
-        try: 
-            idx = self.progression.index(move)
-            move = self.progression[idx]
-            self.progression.remove(move)
-            return move[0:4]
-        except Exception: return []
 
     def __checkInteraction(self, point, radious, std, rectangle):
         if rectangle == []: return -1
@@ -171,62 +156,67 @@ class InteractiveBoulderTrack(ClimbrTrack):
         (w_regularized, h_regularized) = self.surface.getSizeSurface()
         img = np.zeros(shape=(h_regularized, w_regularized, 3), dtype=np.uint8)
         if keypoints["detection"]:
-
             hand_r, hand_l, std_hand_r, std_hand_l, hand_radious = self._getHands(keypoints)
-
-            overlap_hand_r = self.__checkInteraction(hand_r, hand_radious, std_hand_r, self.current_hand_r)
-            if (overlap_hand_r >= self.overlap_score): self.current_hand_r = self.__getNextHold("R")
-            overlap_hand_l = self.__checkInteraction(hand_l, hand_radious, std_hand_l, self.current_hand_l)
-            if (overlap_hand_l >= self.overlap_score): self.current_hand_l = self.__getNextHold("L")
-
-            if self.current_hand_r == [] and self.current_hand_l == []:
+            if self.current_step is not None:
+                hold = self.holds[self.current_step[0]]
+                if self.current_step[1] == Placement.HAND_RIGHT:
+                    overlap_hand_r = self.__checkInteraction(hand_r, hand_radious, std_hand_r, hold)
+                    if (overlap_hand_r >= self.overlap_score): self.current_step, self.next_step = self.boulder.getNext()
+                elif self.current_step[1] == Placement.HAND_LEFT:
+                    overlap_hand_l = self.__checkInteraction(hand_l, hand_radious, std_hand_l, hold)
+                    if (overlap_hand_l >= self.overlap_score): self.current_step, self.next_step = self.boulder.getNext()
+                elif self.current_step[1] == Placement.HAND_MATCHING:
+                    overlap_hand_r = self.__checkInteraction(hand_r, hand_radious, std_hand_r, hold)
+                    overlap_hand_l = self.__checkInteraction(hand_l, hand_radious, std_hand_l, hold)
+                    if (overlap_hand_r >= self.overlap_score) and (overlap_hand_l >= self.overlap_score): self.current_step, self.next_step = self.boulder.getNext()
+                
+        # paint projected image
+        if self.current_step is None:
                 img[:] = (96, 168, 48)
-            if self.current_hand_r != []:
-                util.paintBoundingCircles(img, [self.current_hand_r], (255, 255, 255), -1, 0.2)
-                util.paintBoundingCircles(img, [self.current_hand_r], COLOR_RIGHT, 5, 0.2)
-            if self.current_hand_l != []:
-                util.paintBoundingCircles(img, [self.current_hand_l], (255, 255, 255), -1, 0.2)
-                util.paintBoundingCircles(img, [self.current_hand_l], COLOR_LEFT, 5, 0.2)
-            projector_img = cv2.warpPerspective(img, self.surface.getHomographySP(), self.surface.getSizeProjector())
-            self.signal_detection.emit(projector_img)
-
-            regularized_preview = None
-            if self.render_preview:
-                regularized_preview = cv2.warpPerspective(frame_skeletons, self.surface.getHomographyCS(),
-                                                          self.surface.getSizeSurface())
-                regularized_preview = cv2.bitwise_and(regularized_preview, self.surface.getMaskSurface())
-                if self.current_hand_r != []:
-                    util.paintRectangles(regularized_preview, [self.current_hand_r], COLOR_RIGHT, 2)
-                    if (overlap_hand_r >= self.overlap_score):
-                        util.paintRectangles(regularized_preview, [self.current_hand_r], COLOR_RIGHT, -1) #hold right interaction filled in red
-                if self.current_hand_l != []:
-                    util.paintRectangles(regularized_preview, [self.current_hand_l], COLOR_LEFT, 2)
-                    if (overlap_hand_l >= self.overlap_score):
-                        util.paintRectangles(regularized_preview, [self.current_hand_l], COLOR_LEFT, -1) #hold left interaction filled in blue
-                #hand with detection radious on preview
-                util.paintCircles(regularized_preview, [[hand_r, 10]], COLOR_RIGHT, -1)
-                util.paintCircles(regularized_preview, [[hand_r, hand_radious]], COLOR_RIGHT, 2)
-                util.paintCircles(regularized_preview, [[hand_l, 10]], COLOR_LEFT, -1)
-                util.paintCircles(regularized_preview, [[hand_l, hand_radious]], COLOR_LEFT, 2)
-                self.signal_preview.emit(regularized_preview)
-
         else:
-            if self.current_hand_r == [] and self.current_hand_l == []:
-                img[:] = (96, 168, 48)
-            if self.current_hand_r != []:
-                util.paintBoundingCircles(img, [self.current_hand_r], (255, 255, 255), -1, 0.2)
-                util.paintBoundingCircles(img, [self.current_hand_r], COLOR_RIGHT, 5, 0.2)
-            if self.current_hand_l != []:
-                util.paintBoundingCircles(img, [self.current_hand_l], (255, 255, 255), -1, 0.2)
-                util.paintBoundingCircles(img, [self.current_hand_l], COLOR_LEFT, 5, 0.2)
-            projector_img = cv2.warpPerspective(img, self.surface.getHomographySP(), self.surface.getSizeProjector())
-            self.signal_detection.emit(projector_img)
-            if self.render_preview: 
-                regularized_preview = cv2.warpPerspective(frame_skeletons, self.surface.getHomographyCS(),
-                                                          self.surface.getSizeSurface())
-                regularized_preview = cv2.bitwise_and(regularized_preview, self.surface.getMaskSurface())
-                if self.current_hand_r != []:
-                    util.paintRectangles(regularized_preview, [self.current_hand_r], COLOR_RIGHT, 2)
-                if self.current_hand_l != []:
-                    util.paintRectangles(regularized_preview, [self.current_hand_l], COLOR_LEFT, 2)
-                self.signal_preview.emit(regularized_preview)
+            if self.current_step is not None: 
+                hold = self.holds[self.current_step[0]]
+                util.paintBoundingCircles(img, [hold], (255, 255, 255), -1, 0.2)
+                if self.current_step[1] == Placement.HAND_RIGHT: color = Placement.COLOR_HAND_RIGHT
+                elif self.current_step[1] == Placement.HAND_LEFT: color = Placement.COLOR_HAND_LEFT
+                elif self.current_step[1] == Placement.HAND_MATCHING: color = Placement.COLOR_HAND_MATCHING
+                util.paintBoundingCircles(img, [hold], color, 5, 0.2)
+            
+            if self.next_step is not None: 
+                hold  = self.holds[self.next_step[0]]
+                util.paintBoundingCircles(img, [hold], (255, 255, 255), -1, 0.2)
+                if self.next_step[1] == Placement.HAND_RIGHT: color = Placement.COLOR_HAND_RIGHT
+                elif self.next_step[1] == Placement.HAND_LEFT: color = Placement.COLOR_HAND_LEFT
+                elif self.next_step[1] == Placement.HAND_MATCHING: color = Placement.COLOR_HAND_MATCHING
+                util.paintBoundingCircles(img, [hold], color, 5, 0.2)
+            
+        projector_img = cv2.warpPerspective(img, self.surface.getHomographySP(), self.surface.getSizeProjector())
+        self.signal_detection.emit(projector_img)
+
+        # paint preview
+        if self.render_preview: 
+            regularized_preview = cv2.warpPerspective(frame_skeletons, self.surface.getHomographyCS(),self.surface.getSizeSurface())
+            regularized_preview = cv2.bitwise_and(regularized_preview, self.surface.getMaskSurface())
+            if self.current_step is not None: 
+                hold = self.holds[self.current_step[0]]
+                util.paintBoundingCircles(img, [hold], (255, 255, 255), -1, 0.2)
+                if self.current_step[1] == Placement.HAND_RIGHT: color = Placement.COLOR_HAND_RIGHT
+                elif self.current_step[1] == Placement.HAND_LEFT: color = Placement.COLOR_HAND_LEFT
+                elif self.current_step[1] == Placement.HAND_MATCHING: color = Placement.COLOR_HAND_MATCHING
+                util.paintRectangles(regularized_preview, [hold], color, 2)
+            
+            if self.next_step is not None: 
+                hold  = self.holds[self.next_step[0]]
+                util.paintBoundingCircles(img, [hold], (255, 255, 255), -1, 0.2)
+                if self.next_step[1] == Placement.HAND_RIGHT: color = Placement.COLOR_HAND_RIGHT
+                elif self.next_step[1] == Placement.HAND_LEFT: color = Placement.COLOR_HAND_LEFT
+                elif self.next_step[1] == Placement.HAND_MATCHING: color = Placement.COLOR_HAND_MATCHING
+                util.paintRectangles(regularized_preview, [hold], color, 2)
+            
+            if keypoints["detection"]: #hand with detection radious on preview
+                util.paintCircles(regularized_preview, [[hand_r, 10]], Placement.COLOR_HAND_RIGHT, -1)
+                util.paintCircles(regularized_preview, [[hand_r, hand_radious]], Placement.COLOR_HAND_RIGHT, 2)
+                util.paintCircles(regularized_preview, [[hand_l, 10]], Placement.COLOR_HAND_LEFT, -1)
+                util.paintCircles(regularized_preview, [[hand_l, hand_radious]], Placement.COLOR_HAND_LEFT, 2)
+            
+            self.signal_preview.emit(regularized_preview)
