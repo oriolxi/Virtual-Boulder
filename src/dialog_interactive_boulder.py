@@ -2,7 +2,6 @@ import os
 import pickle
 from PyQt6 import uic
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QDialog, QListWidgetItem, QFileDialog
 
 import util
@@ -47,10 +46,6 @@ class InteractiveBoulderDialog(QDialog):
         self.btn_new_boulder.clicked.connect(self.__newBoulder)
         self.btn_delete_boulder.clicked.connect(self.__deleteBoulder)
         self.lst_boulder_list.currentItemChanged.connect(self.updateBoulderPreview)
-        #self.lst_boulder_list.currentItemChanged
-
-    def __updateBoulderName(self):
-        pass
 
     def __startBoulder(self):
         self.signal_start.emit(self.lst_boulder_list.currentRow())

@@ -7,6 +7,9 @@ Icon?
 # Developement files
 developement/*
 
+# Save files
+src/saves/*
+
 # Cache files
 *.pyc
 
