@@ -22,6 +22,7 @@ from thread_camera import Camera
 from thread_aruco_tracker import ArucoTrack
 from thread_mmpose_tracker import MMposeTracker as PoseTrack
 from dialog_hold_detector import HoldDetectorDialog
+from dialog_interactive_boulder import InteractiveBoulderDialog
 from thread_hold_interaction import FreeClimbingTracker, InteractiveBoulderTrack
 from thread_perspective_warper import PerspectiveWarper
 
@@ -30,7 +31,8 @@ class MainWindow(QMainWindow):
     wdw_windowed_area_selector = None #created and destroyed as needed
     wdw_hold_editor = None #created and destroyed as needed
     wdw_dialog = None #created and destroyed as needed
-    wdw_boulder_creator = None  # created and destroyed as needed
+    wdw_boulder_editor = None  # created and destroyed as needed
+    wdw_boulder_selector = None # created and destroyed as needed
 
     file_test_image = "img/via1.jpg"
     file_fmatch_pattern = "img/calibration_rainbow.png"
@@ -50,7 +52,8 @@ class MainWindow(QMainWindow):
         self.camera = Camera(QCamera(self.available_cameras[0]),0)
         self.surface = Surface()
         self.projector = Projection(self.available_screens[0], True)
-        self.boulder = None
+        self.boulder_list = list()
+        self.boulder_list.append(Boulder())
 
         self.wdw_preview = Projection(self.available_screens[0], False)
 
@@ -123,15 +126,11 @@ class MainWindow(QMainWindow):
         self.act_savefile_reference_images.triggered.connect(self.saveReferenceImages)
         self.act_savefile_reference_video.triggered.connect(self.saveReferenceVideo)
 
-        self.act_open_boulder_creator.triggered.connect(self.showBoulderCreator)
-        self.act_delete_boulder.triggered.connect(self.deleteBoulder)
-        self.act_start_boulder.triggered.connect(self.startBoulder)
-        self.act_start_free_climbing.triggered.connect(self.startFreeClimbing)
+        self.btn_start_boulder.clicked.connect(self.openBoulderSelectorDialog)
+        self.btn_start_free_climbing.clicked.connect(self.startFreeClimbing)
 
         self.act_savefile_sroi_and_holds.triggered.connect(self.createRoiSaveFile)
         self.act_openfile_sroi_and_holds.triggered.connect(self.loadRoiSaveFile)
-        self.act_savefile_boulder.triggered.connect(self.createBoulderSaveFile)
-        self.act_openfile_boulder.triggered.connect(self.loadBoulderSaveFile)
 
     def __updateCamera(self): 
         self.camera.setCamera(QCamera(self.available_cameras[self.cbox_available_cameras.currentIndex()]),self.cbox_available_cameras.currentIndex())
@@ -177,27 +176,6 @@ class MainWindow(QMainWindow):
                 pickle.dump(self.surface.getHolds(), output, pickle.HIGHEST_PROTOCOL)
                 pickle.dump(self.surface.getWallRoiSurface(), output, pickle.HIGHEST_PROTOCOL)
                 pickle.dump(self.surface.getSizeSurface(), output, pickle.HIGHEST_PROTOCOL)
-
-    def loadBoulderSaveFile(self):
-        dialog = QFileDialog()
-        dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
-        dialog.setNameFilter("Pickle file (*.pkl)")
-        dialog.setDirectory('./saves/boulders')
-        dialog.setViewMode(QFileDialog.ViewMode.Detail)
-        if dialog.exec():
-            fileNames = dialog.selectedFiles()
-        if self.boulder is None: self.boulder = Boulder()
-        if os.path.isfile(fileNames[0]):
-            with open(fileNames[0], 'rb') as inp:
-                self.boulder.setSteps(pickle.load(inp))
-            self.updateRoiTable(self.tbl_roi_camera, self.surface.getWallRoiSurface())
-            self.updateFrontViewPreview()
-
-    def createBoulderSaveFile(self):
-        directory = QFileDialog.getExistingDirectory(self, "Open Directory","./saves/boulders")
-        if directory != '':
-            with open(directory + '/boulder.pkl', 'wb') as output:
-                pickle.dump(self.boulder.getSteps(), output, pickle.HIGHEST_PROTOCOL)
 
 #   ---------------------------------------------------- WORK AREA ----------------------------------------------------  #
 
@@ -425,7 +403,7 @@ class MainWindow(QMainWindow):
         if self.wdw_windowed_area_selector:  self.wdw_windowed_area_selector.deleteLater()
         self.wdw_windowed_area_selector = None
 
-#  FrontView HORIZON CORRECTION  ----------------------------------------------------  #
+#  FRONTVIEW HORIZON CORRECTION  ----------------------------------------------------  #
     def startFrontViewHorizon(self):
         if self.surface.getWallRoiCamera() == []: return
         if self.surface.getWallRoiProjector() == []: return
@@ -532,22 +510,24 @@ class MainWindow(QMainWindow):
         self.startTrackerThread(self.tracker_free_climbing, preview_slots=[self.wdw_preview.setImageWithResize], detection_slots=[self.projector.setImageWithoutResize], data_slots=[])
         self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop])
 
-    def showBoulderCreator(self):
+    def openBoulderSelectorDialog(self):
         if self.img_reference_frontview is None: return
-        if self.boulder is None: self.boulder = Boulder()
-        self.wdw_boulder_creator = BoulderCreator(self.available_screens[self.cbox_available_control_screens.currentIndex()], False, self.img_reference_frontview, self.surface.getHolds(), self.boulder)
-        self.startSelectionThread(self.wdw_boulder_creator, close_slots=[], done_slots=[self.updateBoulder], click_slots=[])
 
-    def updateBoulder(self, b):
-        self.boulder = b
-        if self.wdw_boulder_creator:  self.wdw_boulder_creator.deleteLater()
+        self.wdw_boulder_selector = InteractiveBoulderDialog(self, self.boulder_list, self.surface.getHolds(), self.img_reference_frontview)
+        self.wdw_boulder_selector.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
 
-    def startBoulder(self):
-        if self.surface.getWallRoiCamera() == []: return
-        if self.surface.getWallRoiProjector() == []: return
-        if self.boulder is None: return
+        self.wdw_boulder_selector.signal_start.connect(self.startBoulder)
+        self.wdw_boulder_selector.signal_edit.connect(self.editBoulder)
 
-        self.boulder_traker = InteractiveBoulderTrack(self.surface, self.boulder)
+        self.wdw_boulder_selector.show()
+
+    def editBoulder(self, idx):
+        self.wdw_boulder_editor = BoulderCreator(self.available_screens[self.cbox_available_control_screens.currentIndex()], False, self.img_reference_frontview, self.surface.getHolds(), self.boulder_list[idx])
+        self.wdw_boulder_editor.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
+        self.startSelectionThread(self.wdw_boulder_editor, close_slots=[], done_slots=[self.wdw_boulder_selector.updateBoulderPreview], click_slots=[])
+
+    def startBoulder(self, idx):
+        self.boulder_traker = InteractiveBoulderTrack(self.surface, self.boulder_list[idx])
 
         self.tracker_mmpose.setRenderPreview(self.render_previews)
         self.boulder_traker.setRenderPreview(self.render_previews)
@@ -555,13 +535,11 @@ class MainWindow(QMainWindow):
             self.startWindowThread(thread=self.wdw_preview, close_slots=[self.projector.close])
         
         self.wdw_preview.setImage(self.img_reference_frontview)
+        self.wdw_boulder_selector.hide()
         self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_mmpose.detect])
         self.startTrackerThread(self.tracker_mmpose, preview_slots=[], detection_slots=[], data_slots=[self.boulder_traker.detect])
         self.startTrackerThread(self.boulder_traker, preview_slots=[self.wdw_preview.setImageWithResize], detection_slots=[self.projector.setImageWithoutResize], data_slots=[])
-        self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop])
-
-    def deleteBoulder(self):
-        self.boulder = None
+        self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop, self.wdw_boulder_selector.show])              
 
 #  SAVE IMAGES FOR BENCHMARKING  ----------------------------------------------------  #
     def saveReferenceImages(self): 

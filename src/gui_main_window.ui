@@ -614,7 +614,7 @@
      <property name="geometry">
       <rect>
        <x>50</x>
-       <y>140</y>
+       <y>150</y>
        <width>151</width>
        <height>32</height>
       </rect>
@@ -647,6 +647,32 @@
      </property>
      <property name="text">
       <string>Project Holds</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_start_boulder">
+     <property name="geometry">
+      <rect>
+       <x>130</x>
+       <y>120</y>
+       <width>111</width>
+       <height>32</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>BOULDER</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_start_free_climbing">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>120</y>
+       <width>111</width>
+       <height>32</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>FREE CLIMB</string>
      </property>
     </widget>
    </widget>
@@ -1494,29 +1520,14 @@
     <addaction name="separator"/>
     <addaction name="act_clear_all_data"/>
    </widget>
-   <widget class="QMenu" name="menuInteractions">
-    <property name="title">
-     <string>Interactive expriences</string>
-    </property>
-    <addaction name="act_start_free_climbing"/>
-    <addaction name="separator"/>
-    <addaction name="act_start_boulder"/>
-    <addaction name="act_open_boulder_creator"/>
-    <addaction name="act_delete_boulder"/>
-    <addaction name="separator"/>
-   </widget>
    <widget class="QMenu" name="menuSave_files">
     <property name="title">
      <string>Save files</string>
     </property>
     <addaction name="act_openfile_sroi_and_holds"/>
     <addaction name="act_savefile_sroi_and_holds"/>
-    <addaction name="separator"/>
-    <addaction name="act_openfile_boulder"/>
-    <addaction name="act_savefile_boulder"/>
    </widget>
    <addaction name="menu_experimental"/>
-   <addaction name="menuInteractions"/>
    <addaction name="menuSave_files"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>

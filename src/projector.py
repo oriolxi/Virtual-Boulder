@@ -21,8 +21,8 @@ class Projection(QWidget):
     
     signal_close = pyqtSignal()
     
-    def __init__(self, scrn, fs, img=None):
-        super().__init__()
+    def __init__(self, scrn, fs, img=None, parent=None):
+        super().__init__(parent)
 
         self.label = QLabel()
         layout = QHBoxLayout()
@@ -284,7 +284,7 @@ class BoulderCreator(Projection):
     holds = None
 
     signal_done = pyqtSignal(Boulder)
-    
+
     def __init__(self, scrn, fs, img, h, b):
         super().__init__(scrn, fs, img)
 
