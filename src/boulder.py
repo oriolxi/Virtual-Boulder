@@ -8,10 +8,9 @@ class Placement(): # placement type global definitions
     HAND_LEFT = "Lh" # left hand
     HAND_MATCHING = "Mh" # both hands on the same hold
 
-    COLOR_HAND_RIGHT = (255,0,0)
-    COLOR_HAND_LEFT = (0,0,255)
-    COLOR_HAND_MATCHING = (170,0,255)
-
+    COLOR = {   HAND_RIGHT:(255,0,0),
+                HAND_LEFT:(0,0,255),
+                HAND_MATCHING:(170,0,255)}
 
 class Boulder():
     # boulders are stored as an ordered list of pairs (hold_idx, Placement)
@@ -84,9 +83,9 @@ def renderBoulderPreview(boulder, hold_boundboxes, ref_img):
     label_w = 18
     label_h = 25
     label_padding = 3
-    left_brush = QBrush(QColor.fromRgb(*Placement.COLOR_HAND_LEFT))
-    match_brush = QBrush(QColor.fromRgb(*Placement.COLOR_HAND_MATCHING))
-    right_brush = QBrush(QColor.fromRgb(*Placement.COLOR_HAND_RIGHT))
+    left_brush = QBrush(QColor.fromRgb(*Placement.COLOR[Placement.HAND_LEFT]))
+    match_brush = QBrush(QColor.fromRgb(*Placement.COLOR[Placement.HAND_MATCHING]))
+    right_brush = QBrush(QColor.fromRgb(*Placement.COLOR[Placement.HAND_RIGHT]))
     green_pen = QPen(Qt.GlobalColor.green, pen_size)
     transparent_pen = QPen(Qt.GlobalColor.transparent, pen_size)
     white_pen = QPen(Qt.GlobalColor.white, pen_size)

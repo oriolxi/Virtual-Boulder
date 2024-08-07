@@ -72,6 +72,11 @@ class FreeClimbingTracker(ClimbrTrack):
         super().__init__(s)
         self.holds = np.array(self.surface.getHolds())
         self.holds_idx = np.array(range(len(self.holds)))
+        
+        self.holds_overlay = np.zeros(shape=(self.surface.getSizeSurface()[1], self.surface.getSizeSurface()[0], 3), dtype=np.uint8)
+        util.paintRectangles(self.holds_overlay, self.surface.getHolds(), (0,255,0), 2) #holds bounding boxes in green
+        self.holds_overlay_mask = np.full(fill_value=255, shape=(self.surface.getSizeSurface()[1], self.surface.getSizeSurface()[0], 3), dtype=np.uint8)
+        util.paintRectangles(self.holds_overlay_mask, self.surface.getHolds(), (0,0,0), 2) #holds bounding inverse mask
 
     def setRenderPreview(self, b):
         self.render_preview = b
@@ -101,10 +106,10 @@ class FreeClimbingTracker(ClimbrTrack):
             # paint the interactions on the projected image
             util.paintBoundingCircles(img, interaction_l + interaction_r, (255, 255, 255), -1, 0.2)
             if idx_r == idx_l:
-                util.paintBoundingCircles(img, interaction_l, Placement.COLOR_HAND_MATCHING, 5, 0.2)
+                util.paintBoundingCircles(img, interaction_l, Placement.COLOR[Placement.HAND_MATCHING], 5, 0.2)
             else:
-                util.paintBoundingCircles(img, interaction_l, Placement.COLOR_HAND_LEFT, 5, 0.2)
-                util.paintBoundingCircles(img, interaction_r, Placement.COLOR_HAND_RIGHT, 5, 0.2)
+                util.paintBoundingCircles(img, interaction_l, Placement.COLOR[Placement.HAND_LEFT], 5, 0.2)
+                util.paintBoundingCircles(img, interaction_r, Placement.COLOR[Placement.HAND_RIGHT], 5, 0.2)
         
         projector_img = cv2.warpPerspective(img, self.surface.getHomographySP(), self.surface.getSizeProjector())
         self.signal_detection.emit(projector_img)
@@ -112,20 +117,23 @@ class FreeClimbingTracker(ClimbrTrack):
         if self.render_preview:
             regularized_preview = cv2.warpPerspective(frame_skeletons, self.surface.getHomographyCS(),self.surface.getSizeSurface())
             regularized_preview = cv2.bitwise_and(regularized_preview, self.surface.getMaskSurface())
-            util.paintRectangles(regularized_preview, self.surface.getHolds(), (0,255,0), 2) #holds bounding boxes in green
             
+            # add hold bounding boxes overlay
+            regularized_preview_masked = cv2.bitwise_and(regularized_preview, self.holds_overlay_mask)
+            regularized_preview = cv2.add(regularized_preview_masked, self.holds_overlay)
+
             if keypoints["detection"]:
                 if idx_r == idx_l:
-                    util.paintRectangles(regularized_preview, interaction_r, Placement.COLOR_HAND_MATCHING, -1) #fill the hold with matched hand interaction
+                    util.paintRectangles(regularized_preview, interaction_r, Placement.COLOR[Placement.HAND_MATCHING], -1) #fill the hold with matched hand interaction
                 else:
-                    util.paintRectangles(regularized_preview, interaction_r, Placement.COLOR_HAND_RIGHT, -1) #fill the hold with right interaction
-                    util.paintRectangles(regularized_preview, interaction_l, Placement.COLOR_HAND_LEFT, -1) #fill the hold with left interaction
+                    util.paintRectangles(regularized_preview, interaction_r, Placement.COLOR[Placement.HAND_RIGHT], -1) #fill the hold with right interaction
+                    util.paintRectangles(regularized_preview, interaction_l, Placement.COLOR[Placement.HAND_LEFT], -1) #fill the hold with left interaction
                 
                 #hand with detection radious on preview
-                util.paintCircles(regularized_preview, [[hand_r, 10]], Placement.COLOR_HAND_RIGHT, -1)
-                util.paintCircles(regularized_preview, [[hand_r, hand_radious]], Placement.COLOR_HAND_RIGHT, 2)
-                util.paintCircles(regularized_preview, [[hand_l, 10]], Placement.COLOR_HAND_LEFT, -1)
-                util.paintCircles(regularized_preview, [[hand_l, hand_radious]], Placement.COLOR_HAND_LEFT, 2)
+                util.paintCircles(regularized_preview, [[hand_r, 10]], Placement.COLOR[Placement.HAND_RIGHT], -1)
+                util.paintCircles(regularized_preview, [[hand_r, hand_radious]], Placement.COLOR[Placement.HAND_RIGHT], 2)
+                util.paintCircles(regularized_preview, [[hand_l, 10]], Placement.COLOR[Placement.HAND_LEFT], -1)
+                util.paintCircles(regularized_preview, [[hand_l, hand_radious]], Placement.COLOR[Placement.HAND_LEFT], 2)
             
             self.signal_preview.emit(regularized_preview)
 
@@ -177,18 +185,12 @@ class InteractiveBoulderTrack(ClimbrTrack):
             if self.current_step is not None: 
                 hold = self.holds[self.current_step[0]]
                 util.paintBoundingCircles(img, [hold], (255, 255, 255), -1, 0.2)
-                if self.current_step[1] == Placement.HAND_RIGHT: color = Placement.COLOR_HAND_RIGHT
-                elif self.current_step[1] == Placement.HAND_LEFT: color = Placement.COLOR_HAND_LEFT
-                elif self.current_step[1] == Placement.HAND_MATCHING: color = Placement.COLOR_HAND_MATCHING
-                util.paintBoundingCircles(img, [hold], color, 5, 0.2)
+                util.paintBoundingCircles(img, [hold], Placement.COLOR[self.current_step[1]], 5, 0.2)
             
             if self.next_step is not None: 
                 hold  = self.holds[self.next_step[0]]
-                util.paintBoundingCircles(img, [hold], (255, 255, 255), -1, 0.2)
-                if self.next_step[1] == Placement.HAND_RIGHT: color = Placement.COLOR_HAND_RIGHT
-                elif self.next_step[1] == Placement.HAND_LEFT: color = Placement.COLOR_HAND_LEFT
-                elif self.next_step[1] == Placement.HAND_MATCHING: color = Placement.COLOR_HAND_MATCHING
-                util.paintBoundingCircles(img, [hold], color, 5, 0.2)
+                util.paintBoundingCircles(img, [hold], (125, 125, 125), -1, 0.2)
+                util.paintBoundingCircles(img, [hold], Placement.COLOR[self.next_step[1]], 5, 0.2)
             
         projector_img = cv2.warpPerspective(img, self.surface.getHomographySP(), self.surface.getSizeProjector())
         self.signal_detection.emit(projector_img)
@@ -199,24 +201,16 @@ class InteractiveBoulderTrack(ClimbrTrack):
             regularized_preview = cv2.bitwise_and(regularized_preview, self.surface.getMaskSurface())
             if self.current_step is not None: 
                 hold = self.holds[self.current_step[0]]
-                util.paintBoundingCircles(img, [hold], (255, 255, 255), -1, 0.2)
-                if self.current_step[1] == Placement.HAND_RIGHT: color = Placement.COLOR_HAND_RIGHT
-                elif self.current_step[1] == Placement.HAND_LEFT: color = Placement.COLOR_HAND_LEFT
-                elif self.current_step[1] == Placement.HAND_MATCHING: color = Placement.COLOR_HAND_MATCHING
-                util.paintRectangles(regularized_preview, [hold], color, 2)
+                util.paintRectangles(regularized_preview, [hold], Placement.COLOR[self.current_step[1]], 2)
             
             if self.next_step is not None: 
                 hold  = self.holds[self.next_step[0]]
-                util.paintBoundingCircles(img, [hold], (255, 255, 255), -1, 0.2)
-                if self.next_step[1] == Placement.HAND_RIGHT: color = Placement.COLOR_HAND_RIGHT
-                elif self.next_step[1] == Placement.HAND_LEFT: color = Placement.COLOR_HAND_LEFT
-                elif self.next_step[1] == Placement.HAND_MATCHING: color = Placement.COLOR_HAND_MATCHING
-                util.paintRectangles(regularized_preview, [hold], color, 2)
+                util.paintRectangles(regularized_preview, [hold], Placement.COLOR[self.next_step[1]], 2)
             
             if keypoints["detection"]: #hand with detection radious on preview
-                util.paintCircles(regularized_preview, [[hand_r, 10]], Placement.COLOR_HAND_RIGHT, -1)
-                util.paintCircles(regularized_preview, [[hand_r, hand_radious]], Placement.COLOR_HAND_RIGHT, 2)
-                util.paintCircles(regularized_preview, [[hand_l, 10]], Placement.COLOR_HAND_LEFT, -1)
-                util.paintCircles(regularized_preview, [[hand_l, hand_radious]], Placement.COLOR_HAND_LEFT, 2)
+                util.paintCircles(regularized_preview, [[hand_r, 10]], Placement.COLOR[Placement.HAND_RIGHT], -1)
+                util.paintCircles(regularized_preview, [[hand_r, hand_radious]], Placement.COLOR[Placement.HAND_RIGHT], 2)
+                util.paintCircles(regularized_preview, [[hand_l, 10]], Placement.COLOR[Placement.HAND_LEFT], -1)
+                util.paintCircles(regularized_preview, [[hand_l, hand_radious]], Placement.COLOR[Placement.HAND_LEFT], 2)
             
             self.signal_preview.emit(regularized_preview)
