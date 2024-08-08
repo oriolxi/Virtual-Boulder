@@ -20,7 +20,7 @@ import algorithm_feature_match as feature_match
 import algorithm_homography_rank as homography_rank
 from thread_camera import Camera
 from thread_aruco_tracker import ArucoTrack
-from thread_mmpose_tracker import MMposeTracker as PoseTrack
+from thread_pose_tracker import MMposeTracker as PoseTrack
 from dialog_hold_detector import HoldDetectorDialog
 from dialog_interactive_boulder import InteractiveBoulderDialog
 from thread_hold_interaction import FreeClimbingTracker, InteractiveBoulderTrack
@@ -62,7 +62,7 @@ class MainWindow(QMainWindow):
 
         self.render_previews = False
         self.tracker_aruco = ArucoTrack()
-        self.tracker_mmpose = PoseTrack()
+        self.tracker_pose = PoseTrack()
 
         self.img_fmatch_pattern = None #CVimage
         self.img_fmatch_frame = None #CVimage
@@ -469,10 +469,11 @@ class MainWindow(QMainWindow):
         self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop])
 
     def previewPoseTracker(self):
-        self.tracker_mmpose.setRenderPreview(True)
+        self.tracker_pose.setRenderPreview(True)
+        self.tracker_pose.setRenderReprojection(False)
         self.wdw_preview.setImage(self.img_reference_frontview)
-        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_mmpose.detect])
-        self.startTrackerThread(self.tracker_mmpose, preview_slots=[self.wdw_preview.setImageWithResize], detection_slots=[], data_slots=[])
+        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_pose.detect])
+        self.startTrackerThread(self.tracker_pose, preview_slots=[self.wdw_preview.setImageWithResize], detection_slots=[], data_slots=[])
         self.startWindowThread(thread=self.wdw_preview, close_slots=[self.camera.stop])
 
     def startPoseTracker(self):
@@ -481,13 +482,15 @@ class MainWindow(QMainWindow):
 
         self.perspective_warper = PerspectiveWarper(self.surface.getHomographyCP(), self.surface.getSizeProjector())
 
-        self.tracker_mmpose.setRenderPreview(self.render_previews)
+        self.tracker_pose.setRenderPreview(self.render_previews)
+        self.tracker_pose.setRenderReprojection(True)
+
         if self.render_previews: 
             self.startWindowThread(thread=self.wdw_preview, close_slots=[self.projector.close])
 
         self.wdw_preview.setImage(self.img_reference_frontview)
-        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_mmpose.detect])
-        self.startTrackerThread(self.tracker_mmpose, preview_slots=[self.wdw_preview.setImageWithResize], detection_slots=[self.perspective_warper.apply], data_slots=[])
+        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_pose.detect])
+        self.startTrackerThread(self.tracker_pose, preview_slots=[self.wdw_preview.setImageWithResize], detection_slots=[self.perspective_warper.apply], data_slots=[])
         self.perspective_warper.signal_done.connect(self.projector.setImageWithoutResize)
         self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop])
 
@@ -499,14 +502,15 @@ class MainWindow(QMainWindow):
 
         self.tracker_free_climbing = FreeClimbingTracker(self.surface)
 
-        self.tracker_mmpose.setRenderPreview(self.render_previews)
+        self.tracker_pose.setRenderPreview(self.render_previews)
+        self.tracker_pose.setRenderReprojection(False)
         self.tracker_free_climbing.setRenderPreview(self.render_previews)
         if self.render_previews:
             self.startWindowThread(thread=self.wdw_preview, close_slots=[self.projector.close])
         
         self.wdw_preview.setImage(self.img_reference_frontview)
-        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_mmpose.detect])
-        self.startTrackerThread(self.tracker_mmpose, preview_slots=[], detection_slots=[], data_slots=[self.tracker_free_climbing.detect])
+        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_pose.detect])
+        self.startTrackerThread(self.tracker_pose, preview_slots=[], detection_slots=[], data_slots=[self.tracker_free_climbing.detect])
         self.startTrackerThread(self.tracker_free_climbing, preview_slots=[self.wdw_preview.setImageWithResize], detection_slots=[self.projector.setImageWithoutResize], data_slots=[])
         self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop])
 
@@ -525,7 +529,7 @@ class MainWindow(QMainWindow):
         self.wdw_boulder_editor = BoulderCreator(self.available_screens[self.cbox_available_control_screens.currentIndex()], False, self.img_reference_frontview, self.surface.getHolds(), self.boulder_list[idx])
         self.wdw_boulder_editor.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
         
-        self.perspective_warper = PerspectiveWarper(self.surface.getHomographyCP(), self.surface.getSizeProjector())
+        self.perspective_warper = PerspectiveWarper(self.surface.getHomographySP(), self.surface.getSizeProjector())
         self.perspective_warper.signal_done.connect(self.projector.setImageWithoutResize)
 
         self.startSelectionThread(self.wdw_boulder_editor, close_slots=[], done_slots=[self.wdw_boulder_selector.updateBoulderPreview, self.projector.stop], click_slots=[self.perspective_warper.apply])
@@ -535,15 +539,16 @@ class MainWindow(QMainWindow):
     def startBoulder(self, idx):
         self.boulder_traker = InteractiveBoulderTrack(self.surface, self.boulder_list[idx])
 
-        self.tracker_mmpose.setRenderPreview(self.render_previews)
+        self.tracker_pose.setRenderPreview(self.render_previews)
+        self.tracker_pose.setRenderReprojection(False)
         self.boulder_traker.setRenderPreview(self.render_previews)
         if self.render_previews:
             self.startWindowThread(thread=self.wdw_preview, close_slots=[self.projector.close])
         
         self.wdw_preview.setImage(self.img_reference_frontview)
         self.wdw_boulder_selector.hide()
-        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_mmpose.detect])
-        self.startTrackerThread(self.tracker_mmpose, preview_slots=[], detection_slots=[], data_slots=[self.boulder_traker.detect])
+        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_pose.detect])
+        self.startTrackerThread(self.tracker_pose, preview_slots=[], detection_slots=[], data_slots=[self.boulder_traker.detect])
         self.startTrackerThread(self.boulder_traker, preview_slots=[self.wdw_preview.setImageWithResize], detection_slots=[self.projector.setImageWithoutResize], data_slots=[])
         self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop, self.wdw_boulder_selector.show])              
 

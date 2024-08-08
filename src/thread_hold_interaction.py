@@ -17,7 +17,7 @@ class ClimbrTrack(QThread):
     overlap_score = 0.12
     shoulder_hand_ratio = 0.35
     elbow_hand_ratio = 0.35
-    min_hand_std = 40
+    min_hand_std = 20
     smoothing_len = 3
 
     def __init__(self, s):
@@ -57,7 +57,6 @@ class ClimbrTrack(QThread):
 
         hand_r, std_hand_r = self._handFromPoints(warped_keypoints[4], warped_keypoints[2], keypoints["wrist_R_score"], keypoints["elbow_R_score"], self.smooth_hand_r)
         hand_l, std_hand_l = self._handFromPoints(warped_keypoints[5], warped_keypoints[3], keypoints["wrist_L_score"], keypoints["elbow_L_score"], self.smooth_hand_l)
-        
         return hand_r, hand_l, std_hand_r, std_hand_l, int(hand_radious)
 
     def detect(self, pose_data):
