@@ -20,7 +20,7 @@ from mmpose.apis import init_model, inference_topdown
 from mmpose.visualization import FastVisualizer
 from mmdet.apis import init_detector, inference_detector
 
-class MMposeTracker(QThread):
+class PoseTracker(QThread):
     signal_preview = pyqtSignal(np.ndarray)
     signal_detection = pyqtSignal(np.ndarray)
     signal_data = pyqtSignal(list)
@@ -33,7 +33,7 @@ class MMposeTracker(QThread):
 
     def __init__(self):
         super().__init__()
-
+        
         # create mmdetect model (human segmentations)
         with DefaultScope.overwrite_default_scope('mmdet'):
             self.mmdet_model = init_detector(
@@ -43,10 +43,17 @@ class MMposeTracker(QThread):
         
         # create mmpose model and visualizer (pose estimation)
         with DefaultScope.overwrite_default_scope('mmpose'):
+            
             self.mmpose_model = init_model(
                 config='models/configs/mmpose/rtmo-t_8xb32-600e_body7-416x416.py',
                 checkpoint='models/rtmo-t_8xb32-600e_body7-416x416-f48f75cb_20231219.pth',
                 device='cpu')
+            '''
+            self.mmpose_model = init_model(
+                config='models/configs/mmpose/rtmpose-m_8xb512-700e_body8-halpe26-256x192.py',
+                checkpoint='models/rtmpose-m_simcc-body7_pt-body7-halpe26_700e-256x192-4d3e73dd_20230605.pth',
+                device='cpu')
+                '''
             self.mmpose_visualizer = FastVisualizer(metainfo=self.mmpose_model.dataset_meta, radius=10, line_width=6, kpt_thr=0.5)
 
     def setRenderPreview(self, b):
@@ -56,6 +63,7 @@ class MMposeTracker(QThread):
         self.render_reprojection = b
 
     def detect(self, frame):
+
         # detect human bounding box
         with DefaultScope.overwrite_default_scope('mmdet'):
             result = inference_detector(self.mmdet_model, frame)

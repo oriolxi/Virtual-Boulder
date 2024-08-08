@@ -20,7 +20,7 @@ import algorithm_feature_match as feature_match
 import algorithm_homography_rank as homography_rank
 from thread_camera import Camera
 from thread_aruco_tracker import ArucoTrack
-from thread_pose_tracker import MMposeTracker as PoseTrack
+from thread_pose_tracker import PoseTracker as PoseTrack
 from dialog_hold_detector import HoldDetectorDialog
 from dialog_interactive_boulder import InteractiveBoulderDialog
 from thread_hold_interaction import FreeClimbingTracker, InteractiveBoulderTrack

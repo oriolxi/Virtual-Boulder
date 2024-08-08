@@ -138,6 +138,7 @@ class FreeClimbingTracker(ClimbrTrack):
 
 class InteractiveBoulderTrack(ClimbrTrack):
     render_preview = True
+    min_hand_std = 130
 
     def __init__(self, s, b):
         super().__init__(s)

@@ -50,7 +50,7 @@ param_scheduler = [
 
 # data
 input_size = (416, 416)
-metafile = 'configs/_base_/datasets/coco.py'
+metafile = 'models/configs/mmpose/coco.py'
 codec = dict(type='YOLOXPoseAnnotationProcessor', input_size=input_size)
 
 train_pipeline_stage1 = [
