@@ -17,7 +17,7 @@ class ClimbrTrack(QThread):
     overlap_score = 0.12
     shoulder_hand_ratio = 0.35
     elbow_hand_ratio = 0.35
-    min_hand_std = 20
+    min_hand_std = 30
     smoothing_len = 3
 
     def __init__(self, s):

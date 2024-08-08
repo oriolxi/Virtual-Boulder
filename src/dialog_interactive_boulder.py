@@ -59,6 +59,7 @@ class InteractiveBoulderDialog(QDialog):
         dialog.setNameFilter("Boulder file (*.bldr)")
         dialog.setDirectory('./saves/boulders')
         dialog.setViewMode(QFileDialog.ViewMode.Detail)
+        fileNames = [""]
         if dialog.exec():
             fileNames = dialog.selectedFiles()
         if os.path.isfile(fileNames[0]):

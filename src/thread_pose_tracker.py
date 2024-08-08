@@ -26,7 +26,7 @@ class MMposeTracker(QThread):
     render_preview = True
     render_reprojection = False
 
-    margin = 50 # safty margin arround RoI bounding box
+    margin = 200 # safty margin arround RoI bounding box
     person_label = 0 # label used in the detection dataset for 'person'
 
     def __init__(self):
@@ -74,7 +74,8 @@ class MMposeTracker(QThread):
             
             keypoints = {"detection":False}
             if len(pred_instances.keypoints) > 0:
-                bb_translate = [bbox_int[0], bbox_int[1]]
+                bb_translate = [0, 0]
+                if len(indexes) > 0: bb_translate = [bbox_int[0], bbox_int[1]]
                 keypoints = {"detection":True,
 
                             "shoulder_R":pred_instances.keypoints[0][6] + bb_translate,
