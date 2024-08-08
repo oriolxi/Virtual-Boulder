@@ -185,12 +185,12 @@ class InteractiveBoulderTrack(ClimbrTrack):
             if self.current_step is not None: 
                 hold = self.holds[self.current_step[0]]
                 util.paintBoundingCircles(img, [hold], (255, 255, 255), -1, 0.2)
-                util.paintBoundingCircles(img, [hold], Placement.COLOR_BGR[self.current_step[1]], 5, 0.2)
+                util.paintBoundingCircles(img, [hold], Placement.COLOR_BGR[self.current_step[1]], 6, 0.2)
             
             if self.next_step is not None: 
                 hold  = self.holds[self.next_step[0]]
-                util.paintBoundingCircles(img, [hold], (125, 125, 125), -1, 0.2)
-                util.paintBoundingCircles(img, [hold], Placement.COLOR_BGR[self.next_step[1]], 5, 0.2)
+                util.paintBoundingCircles(img, [hold], (255, 255, 255), -1, 0.2)
+                util.paintBoundingCircles(img, [hold], Placement.COLOR_BGR[self.next_step[1]], 2, 0.2)
             
         projector_img = cv2.warpPerspective(img, self.surface.getHomographySP(), self.surface.getSizeProjector())
         self.signal_detection.emit(projector_img)
@@ -201,7 +201,7 @@ class InteractiveBoulderTrack(ClimbrTrack):
             regularized_preview = cv2.bitwise_and(regularized_preview, self.surface.getMaskSurface())
             if self.current_step is not None: 
                 hold = self.holds[self.current_step[0]]
-                util.paintRectangles(regularized_preview, [hold], Placement.COLOR_BGR[self.current_step[1]], 2)
+                util.paintRectangles(regularized_preview, [hold], Placement.COLOR_BGR[self.current_step[1]], 6)
             
             if self.next_step is not None: 
                 hold  = self.holds[self.next_step[0]]

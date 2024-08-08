@@ -284,6 +284,7 @@ class BoulderCreator(Projection):
     holds = None
 
     signal_done = pyqtSignal(Boulder)
+    signal_click = pyqtSignal(np.ndarray)
 
     def __init__(self, scrn, fs, img, h, b):
         super().__init__(scrn, fs, img)
@@ -304,6 +305,15 @@ class BoulderCreator(Projection):
         canvas = renderBoulderPreview(self.boulder, self.holds, self.image)
         canvas = canvas.scaled(self.screen_w, self.screen_h, Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation) #KeepAspectRatioByExpanding is also an option
         self.label.setPixmap(canvas)
+
+        img_black = self.image.copy()
+        img_black.fill(Qt.GlobalColor.transparent)
+        canvas_projection = renderBoulderPreview(self.boulder, self.holds, img_black)
+        self.signal_click.emit(util.CVimageFromQimage(canvas_projection.toImage()))
+
+    def start(self):
+        super(BoulderCreator, self).start()
+        self.__paintBoulder()
 
     def mousePressEvent(self, event):
         # get mouse click coordinates

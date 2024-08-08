@@ -524,7 +524,13 @@ class MainWindow(QMainWindow):
     def editBoulder(self, idx):
         self.wdw_boulder_editor = BoulderCreator(self.available_screens[self.cbox_available_control_screens.currentIndex()], False, self.img_reference_frontview, self.surface.getHolds(), self.boulder_list[idx])
         self.wdw_boulder_editor.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
-        self.startSelectionThread(self.wdw_boulder_editor, close_slots=[], done_slots=[self.wdw_boulder_selector.updateBoulderPreview], click_slots=[])
+        
+        self.perspective_warper = PerspectiveWarper(self.surface.getHomographyCP(), self.surface.getSizeProjector())
+        self.perspective_warper.signal_done.connect(self.projector.setImageWithoutResize)
+
+        self.startSelectionThread(self.wdw_boulder_editor, close_slots=[], done_slots=[self.wdw_boulder_selector.updateBoulderPreview, self.projector.stop], click_slots=[self.perspective_warper.apply])
+        self.startWindowThread(thread=self.projector, close_slots=[])
+
 
     def startBoulder(self, idx):
         self.boulder_traker = InteractiveBoulderTrack(self.surface, self.boulder_list[idx])
