@@ -7,6 +7,8 @@ title: "OpenMMLab Pose Estimation Toolbox and Benchmark"
 date-released: 2020-08-31
 url: "https://github.com/open-mmlab/mmpose"
 license: Apache-2.0
+model checkpoints MMDET - https://github.com/open-mmlab/mmdetection/tree/main/configs
+model checkpoints MMPOSE - https://mmpose.readthedocs.io/en/latest/model_zoo/body_2d_keypoint.html
 '''
 
 import cv2
@@ -42,8 +44,8 @@ class MMposeTracker(QThread):
         # create mmpose model and visualizer (pose estimation)
         with DefaultScope.overwrite_default_scope('mmpose'):
             self.mmpose_model = init_model(
-                config='models/configs/mmpose/rtmpose-m_8xb256-420e_coco-256x192.py',
-                checkpoint='models/rtmpose-m_simcc-coco_pt-aic-coco_420e-256x192-d8dd5ca4_20230127.pth',
+                config='models/configs/mmpose/rtmo-t_8xb32-600e_body7-416x416.py',
+                checkpoint='models/rtmo-t_8xb32-600e_body7-416x416-f48f75cb_20231219.pth',
                 device='cpu')
             self.mmpose_visualizer = FastVisualizer(metainfo=self.mmpose_model.dataset_meta, radius=10, line_width=6, kpt_thr=0.5)
 
@@ -93,6 +95,7 @@ class MMposeTracker(QThread):
                             "wrist_L_score":pred_instances.keypoint_scores[0][9]}
 
         with DefaultScope.overwrite_default_scope('mmpose'):
+            preview = None
             if self.render_preview:
                 preview = frame.copy()
 
