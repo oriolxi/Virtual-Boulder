@@ -1,6 +1,7 @@
 import os
 import cv2
 import sys
+import time
 import pickle
 import numpy as np
 from pathlib import Path
@@ -119,6 +120,7 @@ class MainWindow(QMainWindow):
         self.btn_delete_holds.clicked.connect(self.clearHolds)
         self.btn_project_holds.clicked.connect(self.projectHolds)
         
+        self.act_set_cp_max_area.triggered.connect(self.setCamProjToMaxArea)
         self.act_set_render_previews.toggled.connect(self.setRenderLivePreviews)
         self.setRenderLivePreviews()
         self.act_clear_all_data.triggered.connect(self.__loadResources)
@@ -176,6 +178,22 @@ class MainWindow(QMainWindow):
                 pickle.dump(self.surface.getHolds(), output, pickle.HIGHEST_PROTOCOL)
                 pickle.dump(self.surface.getWallRoiSurface(), output, pickle.HIGHEST_PROTOCOL)
                 pickle.dump(self.surface.getSizeSurface(), output, pickle.HIGHEST_PROTOCOL)
+
+    def setCamProjToMaxArea(self):
+        # experimental feature used for debugging
+        # set camera surface selection to max available area
+        w = self.camera.getSize().width()
+        h = self.camera.getSize().height()
+        self.surface.setCameraParametres([[0,0], [0,h], [w,0], [w,h]], w, h)
+        self.updateRoiTable(self.tbl_roi_frontview, self.surface.getWallRoiCamera())
+        self.img_reference =  np.zeros(shape=(h, w, 3), dtype=np.uint8)
+        self.updateFrontViewPreview()
+        
+        # set projector surface selection to max available area
+        w = self.projector.getSize().width()
+        h = self.projector.getSize().height()
+        self.surface.setProjectorParametres([[0,0], [0,h], [w,0], [w,h]], w, h)
+        self.updateRoiTable(self.tbl_roi_projector, self.surface.getWallRoiProjector())
 
 #   ---------------------------------------------------- WORK AREA ----------------------------------------------------  #
 

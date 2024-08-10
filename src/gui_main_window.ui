@@ -1501,15 +1501,17 @@
    <widget class="QMenu" name="menu_experimental">
     <property name="geometry">
      <rect>
-      <x>390</x>
-      <y>231</y>
+      <x>322</x>
+      <y>230</y>
       <width>189</width>
-      <height>188</height>
+      <height>218</height>
      </rect>
     </property>
     <property name="title">
      <string>Experimental</string>
     </property>
+    <addaction name="act_set_cp_max_area"/>
+    <addaction name="separator"/>
     <addaction name="act_set_render_previews"/>
     <addaction name="separator"/>
     <addaction name="action_show"/>
@@ -1631,6 +1633,11 @@
   <action name="act_savefile_boulder">
    <property name="text">
     <string>Save boulder</string>
+   </property>
+  </action>
+  <action name="act_set_cp_max_area">
+   <property name="text">
+    <string>Set Cam/Proj to max area</string>
    </property>
   </action>
  </widget>

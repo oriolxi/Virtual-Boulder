@@ -1,6 +1,9 @@
+import cv2
+import numpy as np
 from PyQt6.QtCore import Qt, QRectF
 from PyQt6.QtGui import QPixmap, QPen, QBrush, QPainter, QColor
 
+import algebra
 from util import Wildcard
 
 class Placement(): # placement type global definitions
@@ -138,3 +141,39 @@ def renderBoulderPreview(boulder, hold_boundboxes, ref_img):
     
     # return the resulting QPixmap
     return overlay
+
+def mirrorBoulder(boulder, hold_boundboxes, surface_width):
+    mirror_boulder = Boulder()
+    holds_idx = np.array(range(len(hold_boundboxes)))
+
+    for step in boulder.getSteps():
+        # 1 Find mirrored placement
+        placement = step[1]
+        if placement == Placement.HAND_LEFT: new_placement = Placement.HAND_RIGHT
+        elif placement == Placement.HAND_RIGHT: new_placement = Placement.HAND_LEFT
+        elif placement == Placement.HAND_MATCHING: new_placement = Placement.HAND_MATCHING
+        else:
+            print("Could not mirror boulder: no match found for hand placement " + placement)
+            return None
+
+        # 2. Find mirrored hold
+        hold = hold_boundboxes[step[0]]
+        # hold bounding circle
+        pts = np.array([[hold[0], hold[1]], [hold[0]+hold[2], hold[1]+hold[3]]])
+        (x,y), radious = cv2.minEnclosingCircle(pts)
+        # translate bounding circle to other side of vertical center line
+        new_x = surface_width - x
+        # find hold with gratest overlap with the translated bounding circle
+        collisions = np.apply_along_axis(algebra.isCircleTouchingRectangle, 1, np.array(hold_boundboxes), circle_point=[new_x,y], radious=radious)
+        if np.count_nonzero(collisions) > 0:
+            overlaps = np.apply_along_axis(algebra.overlapCircleRectangle, 1, np.array(hold_boundboxes)[collisions], circle_point=[new_x,y], radious=radious)
+            new_hold_idx = holds_idx[collisions][np.argmax(overlaps)]
+        
+            # 3. Add mirrored step to boulder
+            mirror_boulder.addStep(new_hold_idx, new_placement)
+        else: 
+            print("Step omited: no match found for hold with idx " + str(step[0]))
+
+    # 4. Add "_mirror" to the name of the new boulder
+    mirror_boulder.setName(boulder.getName() + "_mirror")
+    return mirror_boulder

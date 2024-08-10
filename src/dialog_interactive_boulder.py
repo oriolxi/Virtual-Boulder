@@ -5,7 +5,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QDialog, QListWidgetItem, QFileDialog
 
 import util
-from boulder import renderBoulderPreview, Boulder
+from boulder import Boulder, renderBoulderPreview, mirrorBoulder
 
 DEFAULT_BOULDER_NAME = "default"
 
@@ -41,6 +41,7 @@ class InteractiveBoulderDialog(QDialog):
     def __setUpGui(self):
         self.btn_start_boulder.clicked.connect(self.__startBoulder)
         self.btn_edit_boulder.clicked.connect(self.__editBoulder)
+        self.btn_mirror_boulder.clicked.connect(self.__mirrorBoulder)
         self.btn_load_boulder.clicked.connect(self.__loadBoulder)
         self.btn_save_boulder.clicked.connect(self.__saveBoulder)
         self.btn_new_boulder.clicked.connect(self.__newBoulder)
@@ -52,6 +53,17 @@ class InteractiveBoulderDialog(QDialog):
 
     def __editBoulder(self):
         self.signal_edit.emit(self.lst_boulder_list.currentRow())
+
+    def __mirrorBoulder(self):
+        original_boulder = self.boulders[self.lst_boulder_list.currentRow()]
+        mirror_boulder = mirrorBoulder(original_boulder, self.holds, self.reference_img.shape[1])
+        if mirrorBoulder is None: return
+        
+        self.boulders.append(mirror_boulder)
+        item = QListWidgetItem(mirror_boulder.getName())
+        item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
+        self.lst_boulder_list.addItem(item)
+        self.lst_boulder_list.setCurrentRow(self.lst_boulder_list.count() -1)
 
     def __loadBoulder(self):
         dialog = QFileDialog()

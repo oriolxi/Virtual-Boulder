@@ -33,7 +33,6 @@ class PoseTracker(QThread):
 
     def __init__(self):
         super().__init__()
-        
         # create mmdetect model (human segmentations)
         with DefaultScope.overwrite_default_scope('mmdet'):
             self.mmdet_model = init_detector(
@@ -43,7 +42,6 @@ class PoseTracker(QThread):
         
         # create mmpose model and visualizer (pose estimation)
         with DefaultScope.overwrite_default_scope('mmpose'):
-            
             self.mmpose_model = init_model(
                 config='models/configs/mmpose/rtmo-t_8xb32-600e_body7-416x416.py',
                 checkpoint='models/rtmo-t_8xb32-600e_body7-416x416-f48f75cb_20231219.pth',
@@ -63,7 +61,6 @@ class PoseTracker(QThread):
         self.render_reprojection = b
 
     def detect(self, frame):
-
         # detect human bounding box
         with DefaultScope.overwrite_default_scope('mmdet'):
             result = inference_detector(self.mmdet_model, frame)
