@@ -1,7 +1,7 @@
 import math
 import numpy as np
 from PyQt6.QtCore import Qt, pyqtSignal, QRectF
-from PyQt6.QtGui import QPixmap, QScreen, QImage, QPainter, QPen, QBrush, QCursor
+from PyQt6.QtGui import QPixmap, QScreen, QImage, QPainter, QPen, QCursor
 from PyQt6.QtWidgets import QLabel, QWidget, QHBoxLayout
 
 import util

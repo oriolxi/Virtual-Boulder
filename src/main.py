@@ -1,16 +1,15 @@
 import os
 import cv2
 import sys
-import time
 import pickle
 import numpy as np
 from pathlib import Path
 from matplotlib import pyplot as plt
 from PyQt6 import uic
-from PyQt6.QtCore import Qt, pyqtSlot
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QScreen, QImage, QPixmap
 from PyQt6.QtMultimedia import QCamera, QMediaDevices
-from PyQt6.QtWidgets import QApplication, QMainWindow, QFileDialog, QTableWidgetItem, QWidget
+from PyQt6.QtWidgets import QApplication, QMainWindow, QFileDialog, QTableWidgetItem
 
 import util
 import algebra

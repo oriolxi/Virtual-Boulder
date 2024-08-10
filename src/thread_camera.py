@@ -2,8 +2,6 @@ import cv2
 import numpy as np
 from PyQt6.QtCore import Qt, pyqtSignal, QThread, QTimer
 
-import util
-
 class Camera(QThread):
     timer = None
     camera = None # QCamera
