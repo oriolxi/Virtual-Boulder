@@ -17,7 +17,7 @@ class ClimbrTrack(QThread):
     overlap_score = 0.12
     shoulder_hand_ratio = 0.35
     elbow_hand_ratio = 0.35
-    min_hand_std = 30
+    min_hand_std = 40
     smoothing_len = 3
 
     def __init__(self, s):
@@ -64,7 +64,7 @@ class ClimbrTrack(QThread):
         if keypoints["detection"]:
             return self._getHands(keypoints)
 
-class FreeClimbingTracker(ClimbrTrack):
+class FreeClimbingTrack(ClimbrTrack):
     render_preview = True
 
     def __init__(self, s):
@@ -138,7 +138,7 @@ class FreeClimbingTracker(ClimbrTrack):
 
 class InteractiveBoulderTrack(ClimbrTrack):
     render_preview = True
-    min_hand_std = 130
+    min_hand_std = 150
 
     def __init__(self, s, b):
         super().__init__(s)

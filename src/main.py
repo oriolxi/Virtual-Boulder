@@ -13,18 +13,21 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, QFileDialog, QTableWidget
 
 import util
 import algebra
-from projector import Projection, ProjectionAreaSelection, ProjectionPointSelection, BoulderCreator
 from surface import Surface
 from boulder import Boulder
-import algorithm_feature_match as feature_match
-import algorithm_homography_rank as homography_rank
-from thread_camera import Camera
-from thread_aruco_tracker import ArucoTrack
-from thread_pose_tracker import PoseTracker as PoseTrack
-from dialog_hold_detector import HoldDetectorDialog
-from dialog_interactive_boulder import InteractiveBoulderDialog
-from thread_hold_interaction import FreeClimbingTracker, InteractiveBoulderTrack
-from thread_perspective_warper import PerspectiveWarper
+from dialogs.generic import ImageWindow
+from dialogs.area_selection import AreaSelectionWindow
+from dialogs.point_selection import HoldSelectionWindow
+from dialogs.boulder_creator import BoulderCreatorWindow
+from gui.hold_detection import HoldDetectionDialog
+from gui.interactive_boulder import InteractiveBoulderDialog
+from threads.camera import Camera
+from threads.aruco_tracker import ArucoTrack
+from threads.pose_tracker import  PoseTrack
+from threads.hold_interaction import FreeClimbingTrack, InteractiveBoulderTrack
+from threads.perspective_warper import PerspectiveWarper
+import algorithms.feature_match as feature_match
+import algorithms.homography_rank as homography_rank
 
 class MainWindow(QMainWindow):
     wdw_projected_area_selector = None #created and destroyed as needed
@@ -40,7 +43,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         
-        uic.loadUi("gui_main_window.ui", self)
+        uic.loadUi("gui/main_window.ui", self)
         self.setWindowTitle("Virtual Boulder")
         self.__loadResources()
         plt.ion() # force pyplot to use it's own thread for figures (QCoreApplication::exec: The event loop is already running)   
@@ -51,11 +54,11 @@ class MainWindow(QMainWindow):
 
         self.camera = Camera(QCamera(self.available_cameras[0]),0)
         self.surface = Surface()
-        self.projector = Projection(self.available_screens[0], True)
+        self.projector = ImageWindow(self.available_screens[0], True)
         self.boulder_list = list()
         self.boulder_list.append(Boulder())
 
-        self.wdw_preview = Projection(self.available_screens[0], False)
+        self.wdw_preview = ImageWindow(self.available_screens[0], False)
 
         self.setImageLblPreview(self.file_test_image, self.lbl_preview_test_image)
         self.setImageLblPreview(self.file_fmatch_pattern, self.lbl_preview_fmatch_pattern)
@@ -343,7 +346,7 @@ class MainWindow(QMainWindow):
 #  SURFACE CALIBRATION  ----------------------------------------------------  #
     def startCameraSurfaceDetection(self): 
         self.projector.setImage(None)
-        self.wdw_windowed_area_selector = ProjectionAreaSelection(self.available_screens[self.cbox_available_control_screens.currentIndex()], False)
+        self.wdw_windowed_area_selector = AreaSelectionWindow(self.available_screens[self.cbox_available_control_screens.currentIndex()], False)
         self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.wdw_windowed_area_selector.setImage])
         self.startSelectionThread(self.wdw_windowed_area_selector, close_slots=[self.projector.stop], done_slots=[self.updateCameraSurfaceSelection], click_slots=[self.camera.stop])
         self.startWindowThread(thread=self.projector, close_slots=[])
@@ -357,7 +360,7 @@ class MainWindow(QMainWindow):
         self.wdw_windowed_area_selector = None
 
     def startManualProjectorSurfaceDetection(self): 
-        self.wdw_projected_area_selector = ProjectionAreaSelection(self.available_screens[self.cbox_available_projector_screens.currentIndex()], True)
+        self.wdw_projected_area_selector = AreaSelectionWindow(self.available_screens[self.cbox_available_projector_screens.currentIndex()], True)
         self.startSelectionThread(self.wdw_projected_area_selector, close_slots=[], done_slots=[self.updateProjectorSurfaceSelection], click_slots=[])
 
     def startAutoProjectorSurfaceDetection(self): 
@@ -425,7 +428,7 @@ class MainWindow(QMainWindow):
         if self.surface.getWallRoiCamera() == []: return
         if self.surface.getWallRoiProjector() == []: return
 
-        self.wdw_windowed_area_selector = ProjectionAreaSelection(self.available_screens[self.cbox_available_control_screens.currentIndex()], False, 2)
+        self.wdw_windowed_area_selector = AreaSelectionWindow(self.available_screens[self.cbox_available_control_screens.currentIndex()], False, 2)
         self.wdw_windowed_area_selector.setImage(util.QimageFromCVimage(self.img_reference_frontview))
         self.startSelectionThread(self.wdw_windowed_area_selector, close_slots=[], done_slots=[self.updateFrontViewHorizon], click_slots=[])
 
@@ -451,7 +454,7 @@ class MainWindow(QMainWindow):
     def showHoldEditor(self):
         if self.img_reference_frontview is None: return
 
-        self.wdw_hold_editor = ProjectionPointSelection(self.available_screens[self.cbox_available_control_screens.currentIndex()], False)
+        self.wdw_hold_editor = HoldSelectionWindow(self.available_screens[self.cbox_available_control_screens.currentIndex()], False)
         self.wdw_hold_editor.setImage(self.img_reference_frontview)
         self.wdw_hold_editor.setPoints(self.surface.getHolds())
         self.startSelectionThread(self.wdw_hold_editor, close_slots=[], done_slots=[self.setHolds], click_slots=[])
@@ -459,7 +462,7 @@ class MainWindow(QMainWindow):
     def showHoldAutoDetection(self):
         if self.img_reference_frontview is None: return
 
-        self.wdw_dialog = HoldDetectorDialog(self.img_reference_frontview)
+        self.wdw_dialog = HoldDetectionDialog(self.img_reference_frontview)
         self.startGenericThread(self.wdw_dialog, self.wdw_dialog.signal_done, slots=[self.setHolds])
 
 #  LIVE VIDEO ANALISIS  ----------------------------------------------------  #
@@ -517,7 +520,7 @@ class MainWindow(QMainWindow):
         if self.surface.getWallRoiCamera() == []: return
         if self.surface.getWallRoiProjector() == []: return
 
-        self.tracker_free_climbing = FreeClimbingTracker(self.surface)
+        self.tracker_free_climbing = FreeClimbingTrack(self.surface)
 
         self.tracker_pose.setRenderPreview(self.render_previews)
         self.tracker_pose.setRenderReprojection(False)
@@ -543,7 +546,7 @@ class MainWindow(QMainWindow):
         self.wdw_boulder_selector.show()
 
     def editBoulder(self, idx):
-        self.wdw_boulder_editor = BoulderCreator(self.available_screens[self.cbox_available_control_screens.currentIndex()], False, self.img_reference_frontview, self.surface.getHolds(), self.boulder_list[idx])
+        self.wdw_boulder_editor = BoulderCreatorWindow(self.available_screens[self.cbox_available_control_screens.currentIndex()], False, self.img_reference_frontview, self.surface.getHolds(), self.boulder_list[idx])
         self.wdw_boulder_editor.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
         
         self.perspective_warper = PerspectiveWarper(self.surface.getHomographySP(), self.surface.getSizeProjector())

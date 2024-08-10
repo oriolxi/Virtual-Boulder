@@ -15,3 +15,8 @@ src/saves/*
 
 # Other
 .idea/
+
+# Files in phase out
+src/models/rtmpose-m_simcc-body7_pt-body7-halpe26_700e-256x192-4d3e73dd_20230605.pth
+src/models/configs/mmpose/rtmpose-m_8xb512-700e_body8-halpe26-256x192.py
+src/models/configs/mmpose/halpe26.py

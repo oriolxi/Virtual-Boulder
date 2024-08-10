@@ -5,9 +5,9 @@ from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QDialog
 
 import util
-import algorithm_hold_detection as hold_detection 
+import algorithms.hold_detection as hold_detection 
 
-class HoldDetectorDialog(QDialog):
+class HoldDetectionDialog(QDialog):
     holds = []
 
     image = None
@@ -21,7 +21,7 @@ class HoldDetectorDialog(QDialog):
 
     def __init__(self, img):
         QDialog.__init__(self)
-        uic.loadUi("gui_hold_detection.ui", self)
+        uic.loadUi("gui/hold_detection.ui", self)
 
         self.image = img
 

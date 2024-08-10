@@ -20,7 +20,7 @@ from mmpose.apis import init_model, inference_topdown
 from mmpose.visualization import FastVisualizer
 from mmdet.apis import init_detector, inference_detector
 
-class PoseTracker(QThread):
+class PoseTrack(QThread):
     signal_preview = pyqtSignal(np.ndarray)
     signal_detection = pyqtSignal(np.ndarray)
     signal_data = pyqtSignal(list)
@@ -104,15 +104,15 @@ class PoseTracker(QThread):
                     draw_instances.keypoints = [pred_instances.keypoints[0]]
                     draw_instances.keypoint_scores = [pred_instances.keypoint_scores[0]]
                     draw_instances.keypoints_visible = [pred_instances.keypoints_visible[0]]
-            if self.render_preview:
-                preview = frame.copy()
-                cv2.rectangle(preview[bbox_int[1]:bbox_int[3], bbox_int[0]:bbox_int[2]], (bbox_int[0], bbox_int[1]), (bbox_int[2], bbox_int[3]), (255,255,255), 2)
-                self.mmpose_visualizer.draw_pose(preview[bbox_int[1]:bbox_int[3], bbox_int[0]:bbox_int[2]], draw_instances)
-                self.signal_preview.emit(preview)
-            if self.render_reprojection:
-                reprojection = np.zeros_like(frame)
-                self.mmpose_visualizer.draw_pose(reprojection[bbox_int[1]:bbox_int[3], bbox_int[0]:bbox_int[2]], draw_instances)
-                self.signal_detection.emit(reprojection)
+                    if self.render_preview:
+                        preview = frame.copy()
+                        cv2.rectangle(preview, (bbox_int[0], bbox_int[1]), (bbox_int[2], bbox_int[3]), (255,255,255), 2)
+                        self.mmpose_visualizer.draw_pose(preview[bbox_int[1]:bbox_int[3], bbox_int[0]:bbox_int[2]], draw_instances)
+                        self.signal_preview.emit(preview)
+                    if self.render_reprojection:
+                        reprojection = np.zeros_like(frame)
+                        self.mmpose_visualizer.draw_pose(reprojection[bbox_int[1]:bbox_int[3], bbox_int[0]:bbox_int[2]], draw_instances)
+                        self.signal_detection.emit(reprojection)
 
         self.signal_data.emit([keypoints, frame, preview])
         return [keypoints, frame, preview]

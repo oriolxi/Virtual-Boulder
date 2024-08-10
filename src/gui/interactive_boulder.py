@@ -15,7 +15,7 @@ class InteractiveBoulderDialog(QDialog):
 
     def __init__(self, parent, boulder_list, holds_bboxes, ref_img):
         super().__init__(parent)
-        uic.loadUi("gui_interactive_boulder.ui", self)
+        uic.loadUi("gui/interactive_boulder.ui", self)
 
         self.boulders = boulder_list
         self.holds = holds_bboxes

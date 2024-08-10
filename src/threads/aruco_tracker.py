@@ -1,7 +1,7 @@
 import cv2
 import cv2.aruco as aruco
 import numpy as np
-from PyQt6.QtCore import QThread,pyqtSignal
+from PyQt6.QtCore import QThread, pyqtSignal
 
 class ArucoTrack(QThread):
     signal_preview = pyqtSignal(np.ndarray)
