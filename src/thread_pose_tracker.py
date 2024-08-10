@@ -70,19 +70,15 @@ class PoseTracker(QThread):
                 bbox = pred_instances.bboxes[int(indexes[0])]
                 bbox_int = bbox.numpy().astype(int) + [ - self.margin, - self.margin, + self.margin, + self.margin]
                 bbox_int = np.clip(bbox_int, 0, None) # ensure bounding box has positive values
-                cropped_frame = frame[bbox_int[1]:bbox_int[3], bbox_int[0]:bbox_int[2]]
-            else: 
-                cropped_frame = frame
+            else:
+                bbox_int = [0,0,frame.shape[1],frame.shape[0]]
         
         # perform pose estimation
         with DefaultScope.overwrite_default_scope('mmpose'):
-            result = inference_topdown(self.mmpose_model, cropped_frame)
+            result = inference_topdown(self.mmpose_model, frame[bbox_int[1]:bbox_int[3], bbox_int[0]:bbox_int[2]])
             pred_instances = result[0].pred_instances
-            
-            keypoints = {"detection":False}
             if len(pred_instances.keypoints) > 0:
-                bb_translate = [0, 0]
-                if len(indexes) > 0: bb_translate = [bbox_int[0], bbox_int[1]]
+                bb_translate = [bbox_int[0], bbox_int[1]]
                 keypoints = {"detection":True,
 
                             "shoulder_R":pred_instances.keypoints[0][6] + bb_translate,
@@ -98,36 +94,25 @@ class PoseTracker(QThread):
                             "elbow_L_score":pred_instances.keypoint_scores[0][7],
                             "wrist_R_score":pred_instances.keypoint_scores[0][10],
                             "wrist_L_score":pred_instances.keypoint_scores[0][9]}
+            else:
+                keypoints = {"detection":False}
 
-        with DefaultScope.overwrite_default_scope('mmpose'):
-            preview = None
-            if self.render_preview:
-                preview = frame.copy()
-
-                if len(indexes) > 0: 
-                    cropped_preview = preview[bbox_int[1]:bbox_int[3], bbox_int[0]:bbox_int[2]]
-                else: 
-                    cropped_preview = preview
-                if len(indexes) > 0: 
-                    cv2.rectangle(preview, (bbox_int[0], bbox_int[1]), (bbox_int[2], bbox_int[3]), (255,255,255), 2)
-                
-                if keypoints["detection"]: 
-                    draw_instances = InstanceData()
+            # generate preview and reprojection if needed
+            if self.render_preview or self.render_reprojection:
+                draw_instances = InstanceData()
+                if keypoints["detection"]:
                     draw_instances.keypoints = [pred_instances.keypoints[0]]
                     draw_instances.keypoint_scores = [pred_instances.keypoint_scores[0]]
                     draw_instances.keypoints_visible = [pred_instances.keypoints_visible[0]]
-                    self.mmpose_visualizer.draw_pose(cropped_preview, draw_instances)
+            if self.render_preview:
+                preview = frame.copy()
+                cv2.rectangle(preview[bbox_int[1]:bbox_int[3], bbox_int[0]:bbox_int[2]], (bbox_int[0], bbox_int[1]), (bbox_int[2], bbox_int[3]), (255,255,255), 2)
+                self.mmpose_visualizer.draw_pose(preview[bbox_int[1]:bbox_int[3], bbox_int[0]:bbox_int[2]], draw_instances)
                 self.signal_preview.emit(preview)
-
-                if self.render_reprojection:
-                    if keypoints["detection"]:
-                        img = np.zeros_like(frame)
-                        if len(indexes) > 0: 
-                            cropped_img = img[bbox_int[1]:bbox_int[3], bbox_int[0]:bbox_int[2]]
-                        else: 
-                            cropped_img = img
-                        self.mmpose_visualizer.draw_pose(cropped_img, draw_instances)
-                        self.signal_detection.emit(img)
+            if self.render_reprojection:
+                reprojection = np.zeros_like(frame)
+                self.mmpose_visualizer.draw_pose(reprojection[bbox_int[1]:bbox_int[3], bbox_int[0]:bbox_int[2]], draw_instances)
+                self.signal_detection.emit(reprojection)
 
         self.signal_data.emit([keypoints, frame, preview])
         return [keypoints, frame, preview]
