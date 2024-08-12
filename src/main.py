@@ -17,7 +17,7 @@ from surface import Surface
 from boulder import Boulder
 from dialogs.generic import ImageWindow
 from dialogs.area_selection import AreaSelectionWindow
-from dialogs.point_selection import HoldSelectionWindow
+from dialogs.hold_selection import HoldSelectionWindow
 from dialogs.boulder_creator import BoulderCreatorWindow
 from gui.hold_detection import HoldDetectionDialog
 from gui.interactive_boulder import InteractiveBoulderDialog

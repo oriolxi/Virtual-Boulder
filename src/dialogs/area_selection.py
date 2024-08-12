@@ -4,20 +4,18 @@ from PyQt6.QtGui import QPainter, QPen, QCursor
 from dialogs.generic import ImageWindow
 
 class AreaSelectionWindow(ImageWindow):
-    stored_points = None #stored points as a list of [x,y]
-    last_position = None
-    last_canvas = None
-    point_n = None
     pen = QPen(Qt.GlobalColor.green, 2)
-
     signal_done = pyqtSignal(int, int, list)
     signal_click = pyqtSignal()
 
     def __init__(self, scrn, fs, n=4):
         super().__init__(scrn, fs)
 
-        self.stored_points = []
+        self.stored_points = [] #stored points as a list of [x,y]
         self.point_n = n
+
+        self.last_position = None
+        self.last_canvas = None
 
         self.setCursor(QCursor(Qt.CursorShape.CrossCursor))
         self.setMouseTracking(True)

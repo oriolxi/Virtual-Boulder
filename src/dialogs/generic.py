@@ -7,19 +7,10 @@ from PyQt6.QtWidgets import QLabel, QWidget, QHBoxLayout
 import util
 
 class ImageWindow(QWidget):
-    screen = None #QScreen
-    screen_w = None
-    screen_h = None
-    is_full_screen = True
-
-    label = None
-    image = None #QImage
-    scaling = 0.85
-    scaling_limit = 0.85 #maximum size of window when not full screen
-    
+    scaling_limit = 0.85 #maximum size of window when not full screen    
     signal_close = pyqtSignal()
     
-    def __init__(self, scrn, fs, img=None, parent=None):
+    def __init__(self, scrn, fs=True, img=None, parent=None):
         super().__init__(parent)
 
         self.label = QLabel()
@@ -64,8 +55,7 @@ class ImageWindow(QWidget):
         if isinstance(img, QImage) or img is  None: self.image = img
         if isinstance(img, np.ndarray): self.image = util.QimageFromCVimage(img)
 
-        canvas = QPixmap.fromImage(self.image)
-        self.label.setPixmap(canvas)
+        self.label.setPixmap( QPixmap.fromImage(self.image) )
         self.update() #update() does not cause an immediate repaint; instead it schedules a paint event for processing when Qt returns to the main event loop. This permits Qt to optimize for more speed and less flicker than a call to repaint() does.
 
     def setImageWithResize(self, img):
@@ -74,17 +64,14 @@ class ImageWindow(QWidget):
 
         canvas = QPixmap.fromImage(self.image)
         canvas = canvas.scaled(self.screen_w, self.screen_h, Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation) #KeepAspectRatioByExpanding is also an option
-
         self.label.setPixmap(canvas)
         self.update() #update() does not cause an immediate repaint; instead it schedules a paint event for processing when Qt returns to the main event loop. This permits Qt to optimize for more speed and less flicker than a call to repaint() does.
 
     def setImage(self, img):
-        if isinstance(img, QImage) or img is  None: 
-            self.image = img
-            self.updateImage()
-        if isinstance(img, np.ndarray):
-            self.image = util.QimageFromCVimage(img)
-            self.updateImage()
+        if isinstance(img, QImage) or img is  None: self.image = img
+        if isinstance(img, np.ndarray): self.image = util.QimageFromCVimage(img)
+        
+        self.updateImage()
 
     def setScreenObj(self, scrn):
         if isinstance(scrn, QScreen): 

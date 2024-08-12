@@ -7,15 +7,11 @@ from dialogs.generic import ImageWindow
 from boulder import Boulder, Placement, renderBoulderPreview
 
 class BoulderCreatorWindow(ImageWindow):
-    boulder = None
-    holds = None
-
     signal_done = pyqtSignal(Boulder)
     signal_click = pyqtSignal(np.ndarray)
 
     def __init__(self, scrn, fs, img, h, b):
         super().__init__(scrn, fs, img)
-
         self.holds = h
         self.boulder = b
         self.__paintBoulder()
@@ -52,11 +48,9 @@ class BoulderCreatorWindow(ImageWindow):
         point[1] = int(point[1] / self.scaling)
 
         # check if point falls inside of a hold
-        hold_idx = -1
-        for h in self.holds: 
-            if algebra.isPointInsideRectangle(point, h):
-                hold_idx = self.holds.index(h)
-        if hold_idx < 0: return
+        hold = self.__isPointInsideHold(point)
+        if hold is None: return
+        hold_idx = self.holds.index(hold)
 
         if event.button() == Qt.MouseButton.RightButton:
             self.boulder.removeStepHold(hold_idx) # remove last instance of hold from boulder

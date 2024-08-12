@@ -6,23 +6,14 @@ import algebra
 from dialogs.generic import ImageWindow
 
 class HoldSelectionWindow(ImageWindow):
-    stored_points = None #stored rectangles as a list of [x,y,w,h] (top_left corner, width, height)
-    overlay = None
-    new_overlay = None
-    drawing = False
-    moving = False
-    rect_origin = None
-    moving_origin = None
-    rect_w = -1
-    rect_h = -1
     pen = QPen(Qt.GlobalColor.green, 2)
-    
     signal_done = pyqtSignal(list)
 
     def __init__(self, scrn, fs): 
         super().__init__(scrn, fs)
-
-        self.stored_points = []
+        self.stored_points = [] #stored rectangles as a list of [x,y,w,h] (top_left corner, width, height)
+        self.moving = False
+        self.drawing = False
 
         self.setCursor(QCursor(Qt.CursorShape.CrossCursor))
         self.setMouseTracking(True)
@@ -31,9 +22,9 @@ class HoldSelectionWindow(ImageWindow):
     def __paintRectangles(self, canvas, rectangles):
         painter = QPainter(canvas)
         painter.setPen(self.pen)
-        for rec in rectangles: painter.drawRect(QRectF(rec[0], rec[1], rec[2], rec[3]))
+        for rec in rectangles: 
+            painter.drawRect(QRectF(rec[0], rec[1], rec[2], rec[3]))
         painter.end()
-        
         return canvas
 
     def __isPointInsideAnyRectangle(self, point): 
@@ -69,18 +60,16 @@ class HoldSelectionWindow(ImageWindow):
             if not collision:
                 self.drawing = True
                 self.rect_origin = point
-                self.rect_w = -1
-                self.rect_h = -1
+                self.rect_w, self.rect_h = -1, -1
 
             if collision:
                 self.moving = True
                 self.moving_origin = point
                 self.rect_origin = [collision[0], collision[1]]
-                self.rect_w = collision[2]
-                self.rect_h = collision[3]
+                self.rect_w, self.rect_h = collision[2], collision[3]
                 self.setCursor(QCursor(Qt.CursorShape.ClosedHandCursor))
 
-        if collision:
+        if event.button() == Qt.MouseButton.RightButton and collision:
             self.stored_points.remove(collision)
             self.overlay.fill(Qt.GlobalColor.transparent)
             self.__paintRectangles(self.overlay, self.stored_points)
@@ -121,6 +110,7 @@ class HoldSelectionWindow(ImageWindow):
                 self.moving = False
                 self.setCursor(QCursor(Qt.CursorShape.CrossCursor))
                 self.stored_points.append([self.rect_origin[0], self.rect_origin[1], self.rect_w, self.rect_h])
+        
         if event.button() == Qt.MouseButton.RightButton:
             self.updateOverlay(self.overlay)
 
