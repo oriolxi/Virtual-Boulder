@@ -560,8 +560,8 @@ class MainWindow(QMainWindow):
         self.startWindowThread(thread=self.projector, close_slots=[])
 
 
-    def startBoulder(self, idx):
-        self.traker_boulder = InteractiveBoulderTrack(self.surface, self.boulder_list[idx])
+    def startBoulder(self, idx, start_step):
+        self.traker_boulder = InteractiveBoulderTrack(self.surface, self.boulder_list[idx], start_step)
 
         self.tracker_pose.setRenderPreview(self.render_previews)
         self.tracker_pose.setRenderReprojection(False)

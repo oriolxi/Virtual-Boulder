@@ -14,9 +14,9 @@ class ClimbrTrack(QThread):
     smoothing_len = 3
     accept_score = 0.5
 
-    def __init__(self, s):
+    def __init__(self, surface):
         super().__init__()
-        self.surface = s
+        self.surface = surface
         self.smooth_hand_l = deque(maxlen = self.smoothing_len)
         self.smooth_hand_l.append([0, 0])
         self.smooth_hand_r = deque(maxlen = self.smoothing_len)
@@ -64,8 +64,8 @@ class FreeClimbingTrack(ClimbrTrack):
     signal_preview = pyqtSignal(np.ndarray)
     signal_detection = pyqtSignal(np.ndarray)
 
-    def __init__(self, s):
-        super().__init__(s)
+    def __init__(self, surface):
+        super().__init__(surface)
         self.holds = np.array(self.surface.getHolds())
         self.holds_idx = np.array(range(len(self.holds)))
         (self.surface_width, self.surface_height) = self.surface.getSizeSurface()
@@ -75,8 +75,8 @@ class FreeClimbingTrack(ClimbrTrack):
         self.holds_overlay_mask = np.full(fill_value=255, shape=(self.surface.getSizeSurface()[1], self.surface.getSizeSurface()[0], 3), dtype=np.uint8)
         util.paintRectangles(self.holds_overlay_mask, self.surface.getHolds(), (0,0,0), 2) #holds bounding inverse mask
 
-    def setRenderPreview(self, b):
-        self.render_preview = b
+    def setRenderPreview(self, bolean):
+        self.render_preview = bolean
 
     def __getBestInteraction(self, point, radious, std):
         interaction = []
@@ -137,17 +137,17 @@ class InteractiveBoulderTrack(ClimbrTrack):
     signal_preview = pyqtSignal(np.ndarray)
     signal_detection = pyqtSignal(np.ndarray)
 
-    def __init__(self, s, b):
-        super().__init__(s)
-        self.boulder = b
+    def __init__(self, surface, boulder, start_step):
+        super().__init__(surface)
+        self.boulder = boulder
         self.holds = self.surface.getHolds()
         (self.surface_width, self.surface_height) = self.surface.getSizeSurface()
 
-        self.boulder.start()
+        self.boulder.start(start_step)
         self.current_step, self.next_step = self.boulder.getNext()
         
-    def setRenderPreview(self, b):
-        self.render_preview = b
+    def setRenderPreview(self, bolean):
+        self.render_preview = bolean
 
     def __checkInteraction(self, point, radious, std, rectangle):
         if std < self.min_hand_std:
@@ -211,8 +211,8 @@ class RandomBoulderTrack(ClimbrTrack):
     signal_preview = pyqtSignal(np.ndarray)
     signal_detection = pyqtSignal(np.ndarray)
 
-    def __init__(self, s):
-        super().__init__(s)
+    def __init__(self, surface):
+        super().__init__(ssurface)
         self.holds = self.surface.getHolds()
         self.holds_idx = np.array(range(len(self.holds)))
         (self.surface_width, self.surface_height) = self.surface.getSizeSurface()
@@ -220,8 +220,8 @@ class RandomBoulderTrack(ClimbrTrack):
         self.current_step, self.next_step = None, None
         self.__getNext()
         
-    def setRenderPreview(self, b):
-        self.render_preview = b
+    def setRenderPreview(self, boolean):
+        self.render_preview = boolean
 
     def __checkInteraction(self, point, radious, std, rectangle):
         if std < self.min_hand_std:

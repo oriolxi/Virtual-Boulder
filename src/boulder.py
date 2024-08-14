@@ -42,10 +42,7 @@ class Boulder():
         step = (hold_idx, placement)
         self.steps[idx] = step
 
-    def removeStepIdx(self, idx):
-        self.steps.pop(idx)
-
-    def removeStepHold(self, hold_idx): # removes the last ocurrence of the setp including the hold
+    def removeStepHold(self, hold_idx): # removes the last ocurrence of the setp that uses the hold
         self.steps.reverse()
         step = (hold_idx, Wildcard())
         self.steps.remove(step)
@@ -78,8 +75,8 @@ class Boulder():
     def getNumSteps(self):
         return len(self.steps)
 
-    def start(self):
-        self.current = -1
+    def start(self, start_step=0):
+        self.current = start_step -1
 
     def getNext(self):
         self.current += 1

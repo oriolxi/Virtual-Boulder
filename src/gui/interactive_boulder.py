@@ -8,7 +8,7 @@ import util
 from boulder import Boulder, renderBoulderPreview, mirrorBoulder
 
 class InteractiveBoulderDialog(QDialog):
-    signal_start = pyqtSignal(int)
+    signal_start = pyqtSignal(int, int)
     signal_edit = pyqtSignal(int)
 
     def __init__(self, parent, boulder_list, holds_bboxes, ref_img):
@@ -36,6 +36,9 @@ class InteractiveBoulderDialog(QDialog):
         self.lbl_preview_boulder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.boulders[idx].setName(self.lst_boulder_list.currentItem().text())
 
+        self.sbox_boulder_start.setRange(0, self.boulders[idx].getNumSteps() - 1)
+        self.sbox_boulder_start.setValue(0)
+
     def __setUpGui(self):
         self.btn_start_boulder.clicked.connect(self.__startBoulder)
         self.btn_edit_boulder.clicked.connect(self.__editBoulder)
@@ -47,7 +50,7 @@ class InteractiveBoulderDialog(QDialog):
         self.lst_boulder_list.currentItemChanged.connect(self.updateBoulderPreview)
 
     def __startBoulder(self):
-        self.signal_start.emit(self.lst_boulder_list.currentRow())
+        self.signal_start.emit(self.lst_boulder_list.currentRow(), self.sbox_boulder_start.value())
 
     def __editBoulder(self):
         self.signal_edit.emit(self.lst_boulder_list.currentRow())
