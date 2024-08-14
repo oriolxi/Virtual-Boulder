@@ -8,15 +8,6 @@ import util
 import algorithms.hold_detection as hold_detection 
 
 class HoldDetectionDialog(QDialog):
-    holds = []
-
-    image = None
-    threshImg = None
-    closingImg = None
-    contoursImg = None
-    boundingBoxesImg = None
-
-
     signal_done = pyqtSignal(list)
 
     def __init__(self, img):
@@ -90,7 +81,6 @@ class HoldDetectionDialog(QDialog):
         params["min_wh_ratio"] = self.doubleSpinBox_minwhRatio.value()
 
         self.holds, images = hold_detection.detectHolds(self.image, params)
-        self.threshImg = images[0]
         self.closingImg = images[1]
         self.contoursImg = images[2]
         self.boundingBoxesImg = images[3]

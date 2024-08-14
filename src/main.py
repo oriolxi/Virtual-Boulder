@@ -24,7 +24,7 @@ from gui.interactive_boulder import InteractiveBoulderDialog
 from threads.camera import Camera
 from threads.aruco_tracker import ArucoTrack
 from threads.pose_tracker import  PoseTrack
-from threads.hold_interaction import FreeClimbingTrack, InteractiveBoulderTrack
+from threads.hold_interaction import FreeClimbingTrack, InteractiveBoulderTrack, RandomBoulderTrack
 from threads.perspective_warper import PerspectiveWarper
 import algorithms.feature_match as feature_match
 import algorithms.homography_rank as homography_rank
@@ -63,7 +63,6 @@ class MainWindow(QMainWindow):
         self.setImageLblPreview(self.file_test_image, self.lbl_preview_test_image)
         self.setImageLblPreview(self.file_fmatch_pattern, self.lbl_preview_fmatch_pattern)
 
-        self.render_previews = False
         self.tracker_aruco = ArucoTrack()
         self.tracker_pose = PoseTrack()
 
@@ -132,6 +131,7 @@ class MainWindow(QMainWindow):
 
         self.btn_start_boulder.clicked.connect(self.openBoulderSelectorDialog)
         self.btn_start_free_climbing.clicked.connect(self.startFreeClimbing)
+        self.btn_start_random.clicked.connect(self.startRandomBoulder)
 
         self.act_savefile_sroi_and_holds.triggered.connect(self.createRoiSaveFile)
         self.act_openfile_sroi_and_holds.triggered.connect(self.loadRoiSaveFile)
@@ -451,6 +451,10 @@ class MainWindow(QMainWindow):
         self.surface.setHolds(holds)
         self.updateFrontViewPreview()
 
+    def addHolds(self, holds):
+        self.surface.addHolds(holds)
+        self.updateFrontViewPreview()
+
     def showHoldEditor(self):
         if self.img_reference_frontview is None: return
 
@@ -463,7 +467,7 @@ class MainWindow(QMainWindow):
         if self.img_reference_frontview is None: return
 
         self.wdw_dialog = HoldDetectionDialog(self.img_reference_frontview)
-        self.startGenericThread(self.wdw_dialog, self.wdw_dialog.signal_done, slots=[self.setHolds])
+        self.startGenericThread(self.wdw_dialog, self.wdw_dialog.signal_done, slots=[self.addHolds])
 
 #  LIVE VIDEO ANALISIS  ----------------------------------------------------  #
     def previewArucoTracker(self):
@@ -557,20 +561,38 @@ class MainWindow(QMainWindow):
 
 
     def startBoulder(self, idx):
-        self.boulder_traker = InteractiveBoulderTrack(self.surface, self.boulder_list[idx])
+        self.traker_boulder = InteractiveBoulderTrack(self.surface, self.boulder_list[idx])
 
         self.tracker_pose.setRenderPreview(self.render_previews)
         self.tracker_pose.setRenderReprojection(False)
-        self.boulder_traker.setRenderPreview(self.render_previews)
+        self.traker_boulder.setRenderPreview(self.render_previews)
         if self.render_previews:
             self.startWindowThread(thread=self.wdw_preview, close_slots=[self.projector.close])
         
         self.wdw_preview.setImage(self.img_reference_frontview)
         self.wdw_boulder_selector.hide()
         self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_pose.detect])
-        self.startTrackerThread(self.tracker_pose, preview_slots=[], detection_slots=[], data_slots=[self.boulder_traker.detect])
-        self.startTrackerThread(self.boulder_traker, preview_slots=[self.wdw_preview.setImageWithResize], detection_slots=[self.projector.setImageWithoutResize], data_slots=[])
+        self.startTrackerThread(self.tracker_pose, preview_slots=[], detection_slots=[], data_slots=[self.traker_boulder.detect])
+        self.startTrackerThread(self.traker_boulder, preview_slots=[self.wdw_preview.setImageWithResize], detection_slots=[self.projector.setImageWithoutResize], data_slots=[])
         self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop, self.wdw_boulder_selector.show])              
+
+    def startRandomBoulder(self):
+        if self.surface.getWallRoiCamera() == []: return
+        if self.surface.getWallRoiProjector() == []: return
+
+        self.tracker_random_bulder = RandomBoulderTrack(self.surface)
+
+        self.tracker_pose.setRenderPreview(self.render_previews)
+        self.tracker_pose.setRenderReprojection(False)
+        self.tracker_random_bulder.setRenderPreview(self.render_previews)
+        if self.render_previews:
+            self.startWindowThread(thread=self.wdw_preview, close_slots=[self.projector.close])
+        
+        self.wdw_preview.setImage(self.img_reference_frontview)
+        self.startGenericThread(self.camera, self.camera.signal_frame, slots=[self.tracker_pose.detect])
+        self.startTrackerThread(self.tracker_pose, preview_slots=[], detection_slots=[], data_slots=[self.tracker_random_bulder.detect])
+        self.startTrackerThread(self.tracker_random_bulder, preview_slots=[self.wdw_preview.setImageWithResize], detection_slots=[self.projector.setImageWithoutResize], data_slots=[])
+        self.startWindowThread(thread=self.projector, close_slots=[self.camera.stop])
 
 #  SAVE IMAGES FOR BENCHMARKING  ----------------------------------------------------  #
     def saveReferenceImages(self): 
@@ -592,7 +614,7 @@ class MainWindow(QMainWindow):
                     cv2.imwrite(directory + "/img_fmatch_frame_frontview.jpg", frontview)
 
             if self.feature_match_pattern is not None: 
-                cv2.imwrite(directory + "/img_fmatch_pattern.jpg", self.feature_match_pattern)
+                cv2.imwrite(directory + "/img_fmatch_pattern.jpg", self.img_fmatch_pattern)
 
             if self.surface.getWallRoiProjector() != []:
                 img = np.zeros((self.surface.getSizeSurface()[1], self.surface.getSizeSurface()[0], 3), dtype=np.uint8)

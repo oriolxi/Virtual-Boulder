@@ -7,8 +7,6 @@ from PyQt6.QtWidgets import QDialog, QListWidgetItem, QFileDialog
 import util
 from boulder import Boulder, renderBoulderPreview, mirrorBoulder
 
-DEFAULT_BOULDER_NAME = "default"
-
 class InteractiveBoulderDialog(QDialog):
     signal_start = pyqtSignal(int)
     signal_edit = pyqtSignal(int)

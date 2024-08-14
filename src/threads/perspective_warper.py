@@ -16,9 +16,3 @@ class PerspectiveWarper(QThread):
     def apply(self, frame):
         warped_frame = cv2.warpPerspective(frame, self.homography, self.size)
         self.signal_done.emit(warped_frame)
-
-    def setHomography(self, h):
-        self.homography = h
-
-    def setSize(self, s):
-        self.size = s

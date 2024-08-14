@@ -652,9 +652,9 @@
     <widget class="QPushButton" name="btn_start_boulder">
      <property name="geometry">
       <rect>
-       <x>130</x>
+       <x>90</x>
        <y>120</y>
-       <width>111</width>
+       <width>71</width>
        <height>32</height>
       </rect>
      </property>
@@ -667,12 +667,25 @@
       <rect>
        <x>10</x>
        <y>120</y>
-       <width>111</width>
+       <width>71</width>
        <height>32</height>
       </rect>
      </property>
      <property name="text">
-      <string>FREE CLIMB</string>
+      <string>FREE</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_start_random">
+     <property name="geometry">
+      <rect>
+       <x>170</x>
+       <y>120</y>
+       <width>71</width>
+       <height>32</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>RANDOM</string>
      </property>
     </widget>
    </widget>
