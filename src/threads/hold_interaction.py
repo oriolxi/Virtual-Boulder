@@ -12,7 +12,7 @@ class ClimbrTrack(QThread):
     elbow_hand_ratio = 0.35
     shoulder_hand_ratio = 0.35
     smoothing_len = 3
-    accept_score = 0.6
+    accept_score = 0.5
 
     def __init__(self, s):
         super().__init__()
