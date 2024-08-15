@@ -31,7 +31,7 @@ class BoulderCreatorWindow(ImageWindow):
 
         img_black = self.image.copy()
         img_black.fill(Qt.GlobalColor.transparent)
-        canvas_projection = renderBoulderPreview(self.boulder, self.holds, img_black)
+        canvas_projection = renderBoulderPreview(self.boulder, self.holds, img_black, draw_lines=True)
         self.signal_click.emit(util.CVimageFromQimage(canvas_projection.toImage()))
 
     def start(self):
