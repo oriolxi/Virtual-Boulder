@@ -88,7 +88,7 @@ class Boulder():
             second = self.steps[self.current + 1]
         return first, second
 
-def renderBoulderPreview(boulder, hold_boundboxes, ref_img):
+def renderBoulderPreview(boulder, hold_boundboxes, ref_img, draw_lines=False):
     # define color parametres
     pen_size = 2
     label_w = 18
@@ -116,14 +116,25 @@ def renderBoulderPreview(boulder, hold_boundboxes, ref_img):
     font.setPointSize(14)
     painter.setFont(font)
 
+    # draw white lines joining steps
+    if draw_lines:
+        prev_point = []
+        painter.setPen(white_pen)
+        for step in boulder.getSteps():
+            hold = hold_boundboxes[step[0]]
+            current_point = [hold[0] + label_w/2, hold[1] + label_h/2]
+            if prev_point != []:
+                painter.drawLine(int(current_point[0]), int(current_point[1]), int(prev_point[0]), int(prev_point[1]))
+            prev_point = current_point
+
     # draw boulder steps as "tape labels"
     step_idx = 0
     hold_repeats = [0] * len(hold_boundboxes) 
     for step in boulder.getSteps():
+        hold = hold_boundboxes[step[0]]
         if step[1] == Placement.HAND_LEFT: painter.setBrush(left_brush)
         if step[1] == Placement.HAND_RIGHT: painter.setBrush(right_brush)
         if step[1] == Placement.HAND_MATCHING: painter.setBrush(match_brush)
-        hold = hold_boundboxes[step[0]]
         painter.setPen(transparent_pen)
         painter.drawRect(QRectF(hold[0] + (label_w + label_padding) * hold_repeats[step[0]] , hold[1], label_w, label_h))
         painter.setPen(white_pen)

@@ -541,25 +541,22 @@ class MainWindow(QMainWindow):
     def openBoulderSelectorDialog(self):
         if self.img_reference_frontview is None: return
 
+        self.startWindowThread(self.projector, close_slots=[])
+        self.perspective_warper = PerspectiveWarper(self.surface.getHomographySP(), self.surface.getSizeProjector())
+        self.perspective_warper.signal_done.connect(self.projector.setImageWithoutResize)
+
         self.wdw_boulder_selector = InteractiveBoulderDialog(self, self.boulder_list, self.surface.getHolds(), self.img_reference_frontview)
         self.wdw_boulder_selector.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
-
+        self.startSelectionThread(self.wdw_boulder_selector, close_slots=[self.projector.stop], done_slots=[], click_slots=[self.perspective_warper.apply])
         self.wdw_boulder_selector.signal_start.connect(self.startBoulder)
         self.wdw_boulder_selector.signal_edit.connect(self.editBoulder)
-
-        self.wdw_boulder_selector.show()
 
     def editBoulder(self, idx):
         self.wdw_boulder_editor = BoulderCreatorWindow(self.available_screens[self.cbox_available_control_screens.currentIndex()], False, self.img_reference_frontview, self.surface.getHolds(), self.boulder_list[idx])
         self.wdw_boulder_editor.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
+
+        self.startSelectionThread(self.wdw_boulder_editor, close_slots=[], done_slots=[self.wdw_boulder_selector.updateBoulderPreview], click_slots=[self.perspective_warper.apply])
         
-        self.perspective_warper = PerspectiveWarper(self.surface.getHomographySP(), self.surface.getSizeProjector())
-        self.perspective_warper.signal_done.connect(self.projector.setImageWithoutResize)
-
-        self.startSelectionThread(self.wdw_boulder_editor, close_slots=[], done_slots=[self.wdw_boulder_selector.updateBoulderPreview, self.projector.stop], click_slots=[self.perspective_warper.apply])
-        self.startWindowThread(thread=self.projector, close_slots=[])
-
-
     def startBoulder(self, idx, start_step):
         self.traker_boulder = InteractiveBoulderTrack(self.surface, self.boulder_list[idx], start_step)
 

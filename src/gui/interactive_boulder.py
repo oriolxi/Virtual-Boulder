@@ -1,5 +1,6 @@
 import os
 import pickle
+import numpy as np
 from PyQt6 import uic
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QDialog, QListWidgetItem, QFileDialog
@@ -10,6 +11,8 @@ from boulder import Boulder, renderBoulderPreview, mirrorBoulder
 class InteractiveBoulderDialog(QDialog):
     signal_start = pyqtSignal(int, int)
     signal_edit = pyqtSignal(int)
+    signal_click = pyqtSignal(np.ndarray)
+    signal_close = pyqtSignal()
 
     def __init__(self, parent, boulder_list, holds_bboxes, ref_img):
         super().__init__(parent)
@@ -17,7 +20,7 @@ class InteractiveBoulderDialog(QDialog):
 
         self.boulders = boulder_list
         self.holds = holds_bboxes
-        self.reference_img = ref_img
+        self.reference_img = util.QimageFromCVimage(ref_img)
         for boulder in self.boulders:
             item = QListWidgetItem(boulder.getName())
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
@@ -31,10 +34,15 @@ class InteractiveBoulderDialog(QDialog):
         if (idx < 0 or idx >= len(self.boulders)): 
             self.lst_boulder_list.setCurrentRow(0)
             idx = 0
-        img = renderBoulderPreview(self.boulders[idx], self.holds, util.QimageFromCVimage(self.reference_img))
+        img = renderBoulderPreview(self.boulders[idx], self.holds, self.reference_img, draw_lines=True)
         self.lbl_preview_boulder.setPixmap(img.scaled(self.lbl_preview_boulder.size().width(), self.lbl_preview_boulder.size().height(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         self.lbl_preview_boulder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.boulders[idx].setName(self.lst_boulder_list.currentItem().text())
+
+        img_black = self.reference_img.copy()
+        img_black.fill(Qt.GlobalColor.transparent)
+        canvas_projection = renderBoulderPreview(self.boulders[idx], self.holds, img_black, draw_lines=True)
+        self.signal_click.emit(util.CVimageFromQimage(canvas_projection.toImage()))
 
         self.sbox_boulder_start.setRange(0, self.boulders[idx].getNumSteps() - 1)
         self.sbox_boulder_start.setValue(0)
@@ -57,7 +65,7 @@ class InteractiveBoulderDialog(QDialog):
 
     def __mirrorBoulder(self):
         original_boulder = self.boulders[self.lst_boulder_list.currentRow()]
-        mirror_boulder = mirrorBoulder(original_boulder, self.holds, self.reference_img.shape[1])
+        mirror_boulder = mirrorBoulder(original_boulder, self.holds, self.reference_img.size().width())
         if mirrorBoulder is None: return
         
         self.boulders.append(mirror_boulder)
@@ -107,3 +115,10 @@ class InteractiveBoulderDialog(QDialog):
             self.boulders.pop(idx)
             self.lst_boulder_list.takeItem(idx)
             self.lst_boulder_list.setCurrentRow(idx - 1)
+
+    def start(self):
+        self.show()
+        self.updateBoulderPreview()
+
+    def closeEvent(self, event):
+        self.signal_close.emit()
