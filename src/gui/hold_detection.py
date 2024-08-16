@@ -1,14 +1,17 @@
 import cv2
+import numpy as np
 from PyQt6 import uic
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtCore import Qt, QRectF, pyqtSignal
+from PyQt6.QtGui import QPixmap, QPainter, QPen
 from PyQt6.QtWidgets import QDialog
 
 import util
 import algorithms.hold_detection as hold_detection 
 
 class HoldDetectionDialog(QDialog):
+    signal_close = pyqtSignal()
     signal_done = pyqtSignal(list)
+    signal_click = pyqtSignal(np.ndarray)
 
     def __init__(self, img):
         QDialog.__init__(self)
@@ -17,13 +20,11 @@ class HoldDetectionDialog(QDialog):
         self.image = img
 
         Qimg = QPixmap(util.QimageFromCVimage(self.image))
-        w = self.label_imgOriginal.size().width()
-        h = self.label_imgOriginal.size().height()
+        w, h = self.label_imgOriginal.size().width(), self.label_imgOriginal.size().height()
         self.label_imgOriginal.setPixmap(Qimg.scaled(w, h, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         self.label_imgOriginal.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.__setUpGui()
-        self.__computeDetection()
 
     def __setUpGui(self):
         self.slider_minH.valueChanged.connect(self.__computeDetection)
@@ -90,26 +91,37 @@ class HoldDetectionDialog(QDialog):
     def __updatePreviews(self):
         self.closingImg = cv2.cvtColor(self.closingImg, cv2.COLOR_GRAY2BGR)
         Qimg = QPixmap(util.QimageFromCVimage(self.closingImg))
-        w = self.label_imgThreshold.size().width()
-        h = self.label_imgThreshold.size().height()
+        w, h = self.label_imgThreshold.size().width(), self.label_imgThreshold.size().height()
         self.label_imgThreshold.setPixmap(Qimg.scaled(w, h, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         self.label_imgThreshold.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         Qimg = QPixmap(util.QimageFromCVimage(self.contoursImg))
-        w = self.label_imgContours.size().width()
-        h = self.label_imgContours.size().height()
+        w, h = self.label_imgContours.size().width(), self.label_imgContours.size().height()
         self.label_imgContours.setPixmap(Qimg.scaled(w, h, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         self.label_imgContours.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         Qimg = QPixmap(util.QimageFromCVimage(self.boundingBoxesImg))
-        w = self.label_imgDetectedHolds.size().width()
-        h = self.label_imgDetectedHolds.size().height()
+        w, h = self.label_imgDetectedHolds.size().width(), self.label_imgDetectedHolds.size().height()
         self.label_imgDetectedHolds.setPixmap(Qimg.scaled(w, h, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         self.label_imgDetectedHolds.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
+        img_black = Qimg.copy()
+        img_black.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(img_black)
+        painter.setPen(QPen(Qt.GlobalColor.green, 2))
+        for rec in self.holds:
+            painter.drawRect(QRectF(rec[0], rec[1], rec[2], rec[3]))
+        painter.end()
+        self.signal_click.emit(util.CVimageFromQimage(img_black.toImage()))
+
     def start(self):
         self.show()
+        self.__computeDetection()
 
     def accept(self):
         self.signal_done.emit(self.holds)
         self.close()
+
+    def closeEvent(self, event):
+        super(HoldDetectionDialog, self).closeEvent(event)
+        self.signal_close.emit()

@@ -466,8 +466,12 @@ class MainWindow(QMainWindow):
     def showHoldAutoDetection(self):
         if self.img_reference_frontview is None: return
 
+        self.startWindowThread(self.projector, close_slots=[])
+        self.perspective_warper = PerspectiveWarper(self.surface.getHomographySP(), self.surface.getSizeProjector())
+        self.perspective_warper.signal_done.connect(self.projector.setImageWithoutResize)
+
         self.wdw_dialog = HoldDetectionDialog(self.img_reference_frontview)
-        self.startGenericThread(self.wdw_dialog, self.wdw_dialog.signal_done, slots=[self.addHolds])
+        self.startSelectionThread(self.wdw_dialog, close_slots=[self.projector.stop], done_slots=[self.addHolds], click_slots=[self.perspective_warper.apply])
 
 #  LIVE VIDEO ANALISIS  ----------------------------------------------------  #
     def previewArucoTracker(self):

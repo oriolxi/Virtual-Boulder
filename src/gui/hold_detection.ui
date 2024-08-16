@@ -338,7 +338,7 @@
      <string/>
     </property>
     <property name="pixmap">
-     <pixmap>img/color_V.png</pixmap>
+     <pixmap>../img/color_V.png</pixmap>
     </property>
     <property name="scaledContents">
      <bool>true</bool>
@@ -357,7 +357,7 @@
      <string/>
     </property>
     <property name="pixmap">
-     <pixmap>img/color_H.png</pixmap>
+     <pixmap>../img/color_H.png</pixmap>
     </property>
     <property name="scaledContents">
      <bool>true</bool>
@@ -376,7 +376,7 @@
      <string/>
     </property>
     <property name="pixmap">
-     <pixmap>img/color_S.png</pixmap>
+     <pixmap>../img/color_S.png</pixmap>
     </property>
     <property name="scaledContents">
      <bool>true</bool>
