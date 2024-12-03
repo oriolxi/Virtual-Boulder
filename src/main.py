@@ -8,17 +8,17 @@ from matplotlib import pyplot as plt
 from PyQt6 import uic
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QScreen, QImage, QPixmap
-from PyQt6.QtMultimedia import QCamera, QMediaDevices
+from PyQt6.QtMultimedia import QMediaDevices
 from PyQt6.QtWidgets import QApplication, QMainWindow, QFileDialog, QTableWidgetItem
 
 import util
 import algebra
 from surface import Surface
 from boulder import Boulder
-from dialogs.generic import ImageWindow
-from dialogs.area_selection import AreaSelectionWindow
-from dialogs.hold_selection import HoldSelectionWindow
-from dialogs.boulder_creator import BoulderCreatorWindow
+from windows.generic import ImageWindow
+from windows.area_selection import AreaSelectionWindow
+from windows.hold_selection import HoldSelectionWindow
+from windows.boulder_creator import BoulderCreatorWindow
 from gui.hold_detection import HoldDetectionDialog
 from gui.interactive_boulder import InteractiveBoulderDialog
 from threads.camera import Camera
@@ -52,7 +52,7 @@ class MainWindow(QMainWindow):
         self.available_screens = QScreen.virtualSiblings(self.screen())
         self.available_cameras = QMediaDevices.videoInputs()
 
-        self.camera = Camera(QCamera(self.available_cameras[0]),0)
+        self.camera = Camera(0)
         self.surface = Surface()
         self.projector = ImageWindow(self.available_screens[0], True)
         self.boulder_list = list()
@@ -137,9 +137,10 @@ class MainWindow(QMainWindow):
         self.act_openfile_sroi_and_holds.triggered.connect(self.loadRoiSaveFile)
 
     def __updateCamera(self): 
-        self.camera.setCamera(QCamera(self.available_cameras[self.cbox_available_cameras.currentIndex()]),self.cbox_available_cameras.currentIndex())
-        self.tbl_size_camera.setItem(0,1,QTableWidgetItem(str(self.camera.getSize().width())))
-        self.tbl_size_camera.setItem(1,1,QTableWidgetItem(str(self.camera.getSize().height())))
+        self.camera.setCamera(self.cbox_available_cameras.currentIndex())
+        c_width, c_height = self.camera.getSize()
+        self.tbl_size_camera.setItem(0,1,QTableWidgetItem(str(c_width)))
+        self.tbl_size_camera.setItem(1,1,QTableWidgetItem(str(c_height)))
 
     def __updateProjectorScreen(self): 
         screen = self.available_screens[self.cbox_available_projector_screens.currentIndex()]
@@ -184,8 +185,7 @@ class MainWindow(QMainWindow):
     def setCamProjToMaxArea(self):
         # experimental feature used for debugging
         # set camera surface selection to max available area
-        w = self.camera.getSize().width()
-        h = self.camera.getSize().height()
+        w, h = self.camera.getSize()
         self.surface.setCameraParametres([[0,0], [0,h], [w,0], [w,h]], w, h)
         self.updateRoiTable(self.tbl_roi_frontview, self.surface.getWallRoiCamera())
         self.img_reference =  np.zeros(shape=(h, w, 3), dtype=np.uint8)
@@ -568,7 +568,7 @@ class MainWindow(QMainWindow):
         self.tracker_pose.setRenderReprojection(False)
         self.traker_boulder.setRenderPreview(self.render_previews)
         if self.render_previews:
-            self.startWindowThread(thread=self.wdw_preview, close_slots=[self.projector.close])
+            self.startWindowThread(thread=self.wdw_preview, close_slots=[])
         
         self.wdw_preview.setImage(self.img_reference_frontview)
         self.wdw_boulder_selector.hide()

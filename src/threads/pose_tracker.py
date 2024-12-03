@@ -54,12 +54,6 @@ class PoseTrack(QThread):
                 '''
             self.mmpose_visualizer = FastVisualizer(metainfo=self.mmpose_model.dataset_meta, radius=10, line_width=6, kpt_thr=0.5)
 
-    def setRenderPreview(self, b):
-        self.render_preview = b
-
-    def setRenderReprojection(self, b):
-        self.render_reprojection = b
-
     def detect(self, frame):
         # detect human bounding box
         with DefaultScope.overwrite_default_scope('mmdet'):
@@ -116,3 +110,9 @@ class PoseTrack(QThread):
 
         self.signal_data.emit([keypoints, frame, preview])
         return [keypoints, frame, preview]
+
+    def setRenderPreview(self, b):
+        self.render_preview = b
+
+    def setRenderReprojection(self, b):
+        self.render_reprojection = b

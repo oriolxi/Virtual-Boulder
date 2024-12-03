@@ -23,9 +23,9 @@ class ImageWindow(QWidget):
         self.is_full_screen = fs
         self.setImage(img)
 
-        self.__update()
+        self._update()
 
-    def __update(self):
+    def _update(self):
         self.updateImage()
         self.setScreen(self.screen)
         self.move(self.screen.geometry().x(), self.screen.geometry().y())
@@ -76,7 +76,7 @@ class ImageWindow(QWidget):
     def setScreenObj(self, scrn):
         if isinstance(scrn, QScreen): 
             self.screen = scrn
-            self.__update()
+            self._update()
 
     def getSize(self):
         return self.screen.size()

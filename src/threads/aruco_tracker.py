@@ -17,9 +17,6 @@ class ArucoTrack(QThread):
         self.aruco_parameters.cornerRefinementMethod = aruco.CORNER_REFINE_SUBPIX #Possible values are CORNER_REFINE_NONE, CORNER_REFINE_SUBPIX, CORNER_REFINE_CONTOUR, CORNER_REFINE_APRILTAG
         self.aruco_detector = cv2.aruco.ArucoDetector(self.aruco_dictionary, self.aruco_parameters) 
 
-    def setRenderPreview(self, b):
-        self.render_preview = b
-
     def detect(self, frame):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         (corners, ids, rejected) = self.aruco_detector.detectMarkers(gray)
@@ -42,3 +39,6 @@ class ArucoTrack(QThread):
         
         self.signal_data.emit([ids, markers, preview])
         return [ids, markers, preview]
+
+    def setRenderPreview(self, b):
+        self.render_preview = b

@@ -4,12 +4,9 @@ import numpy as np
 import algebra
 
 class Surface():
-    max_surface_size = [1400, 1400] # maximum size the fronto-parallel view image can take
+    max_surface_size = (1400, 1400) # maximum size the fronto-parallel view image can take
     
     def __init__(self):
-        self.clear()
-
-    def clear(self):
         self.wall_roi_camera = [] # list of 4 points that delimite the climbing wall on the camera image plane
         self.width_camera = None # size of the camera image
         self.height_camera = None
@@ -27,6 +24,9 @@ class Surface():
         self.homography_CP = None # homography that maps the camera plane to the projector plane
 
         self.holds = [] # set of hold bounding boxes stored as rectangles b = [x,y,w,h]
+
+    def addHolds(self,h):
+        self.holds += h
 
     def setCameraParametres(self, roi, width, height):
         self.width_camera = width
@@ -61,33 +61,6 @@ class Surface():
         pts_dst = np.array(self.wall_roi_projector, dtype=np.float32)
         self.homography_SP = cv2.getPerspectiveTransform(pts_src, pts_dst)
 
-    def setHolds(self,h):
-        self.holds = h
-
-    def addHolds(self,h):
-        self.holds += h
-        
-    def getWallRoiCamera(self):
-        return self.wall_roi_camera
-
-    def getWallRoiProjector(self):
-        return self.wall_roi_projector
-
-    def getWallRoiSurface(self):
-        return self.wall_roi_surface
-
-    def getSizeCamera(self):
-        return (self.width_camera, self.height_camera)
-
-    def getSizeProjector(self):
-        return (self.width_projector, self.height_projector)
-
-    def getSizeSurface(self):
-        return (self.width_surface, self.height_surface)
-
-    def getMaxSizeSurface(self):
-        return self.max_surface_size
-
     def getMaskCamera(self):
         mask = np.zeros(shape=(self.height_camera, self.width_camera, 3), dtype=np.uint8)
         polygon = np.array(self.wall_roi_camera, dtype=np.int32)
@@ -106,8 +79,32 @@ class Surface():
         cv2.fillPoly(mask, pts=[polygon], color=(255, 255, 255))
         return mask
 
+    def setHolds(self,h):
+        self.holds = h
+
     def getHolds(self):
         return self.holds
+
+    def getWallRoiCamera(self):
+        return self.wall_roi_camera
+
+    def getWallRoiProjector(self):
+        return self.wall_roi_projector
+
+    def getWallRoiSurface(self):
+        return self.wall_roi_surface
+
+    def getMaxSizeSurface(self):
+        return self.max_surface_size
+
+    def getSizeCamera(self):
+        return (self.width_camera, self.height_camera)
+
+    def getSizeProjector(self):
+        return (self.width_projector, self.height_projector)
+
+    def getSizeSurface(self):
+        return (self.width_surface, self.height_surface)
 
     def getHomographyCS(self):
         return self.homography_CS

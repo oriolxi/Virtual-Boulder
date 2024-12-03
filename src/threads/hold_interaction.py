@@ -78,7 +78,7 @@ class FreeClimbingTrack(ClimbrTrack):
     def setRenderPreview(self, bolean):
         self.render_preview = bolean
 
-    def __getBestInteraction(self, point, radious, std):
+    def _getBestInteraction(self, point, radious, std):
         interaction = []
         interaction_idx = -1
         if std < self.min_hand_std:
@@ -94,8 +94,8 @@ class FreeClimbingTrack(ClimbrTrack):
         img = np.zeros(shape=(self.surface_height, self.surface_width, 3), dtype=np.uint8)
         if keypoints["detection"]:
             hand_r, hand_l, std_hand_r, std_hand_l, hand_radious = self._getHands(keypoints)
-            interaction_r, idx_r = self.__getBestInteraction(hand_r, hand_radious, std_hand_r)
-            interaction_l, idx_l = self.__getBestInteraction(hand_l, hand_radious, std_hand_l)
+            interaction_r, idx_r = self._getBestInteraction(hand_r, hand_radious, std_hand_r)
+            interaction_l, idx_l = self._getBestInteraction(hand_l, hand_radious, std_hand_l)
 
             util.paintBoundingCircles(img, interaction_l + interaction_r, (255, 255, 255), -1, 0.2)
             if idx_r == idx_l:
@@ -149,7 +149,7 @@ class InteractiveBoulderTrack(ClimbrTrack):
     def setRenderPreview(self, bolean):
         self.render_preview = bolean
 
-    def __checkInteraction(self, point, radious, std, rectangle):
+    def _checkInteraction(self, point, radious, std, rectangle):
         if std < self.min_hand_std:
             return algebra.overlapCircleRectangle(rectangle, point, radious)
         return 0
@@ -161,17 +161,19 @@ class InteractiveBoulderTrack(ClimbrTrack):
             if self.current_step is not None:
                 hold, placement = self.holds[self.current_step[0]], self.current_step[1]
                 if placement == Placement.HAND_RIGHT:
-                    overlap_hand_r = self.__checkInteraction(hand_r, hand_radious, std_hand_r, hold)
+                    overlap_hand_r = self._checkInteraction(hand_r, hand_radious, std_hand_r, hold)
                     if (overlap_hand_r >= self.overlap_score): self.current_step, self.next_step = self.boulder.getNext()
                 elif placement == Placement.HAND_LEFT:
-                    overlap_hand_l = self.__checkInteraction(hand_l, hand_radious, std_hand_l, hold)
+                    overlap_hand_l = self._checkInteraction(hand_l, hand_radious, std_hand_l, hold)
                     if (overlap_hand_l >= self.overlap_score): self.current_step, self.next_step = self.boulder.getNext()
                 elif placement == Placement.HAND_MATCHING:
-                    overlap_hand_r = self.__checkInteraction(hand_r, hand_radious, std_hand_r, hold)
-                    overlap_hand_l = self.__checkInteraction(hand_l, hand_radious, std_hand_l, hold)
+                    overlap_hand_r = self._checkInteraction(hand_r, hand_radious, std_hand_r, hold)
+                    overlap_hand_l = self._checkInteraction(hand_l, hand_radious, std_hand_l, hold)
                     if (overlap_hand_r >= self.overlap_score) and (overlap_hand_l >= self.overlap_score): self.current_step, self.next_step = self.boulder.getNext()
 
         img = np.zeros(shape=(self.surface_height, self.surface_width, 3), dtype=np.uint8)
+        #util.drawLines(img, self.prev_points, color=(255,255,255))
+        #util.paintRectangles(img, self.rectangles, color=(255,255,255))
         if self.current_step is not None:
             hold, placement = self.holds[self.current_step[0]], self.current_step[1]
             util.paintBoundingCircles(img, [hold], (255, 255, 255), -1, 0.2)
@@ -212,23 +214,23 @@ class RandomBoulderTrack(ClimbrTrack):
     signal_detection = pyqtSignal(np.ndarray)
 
     def __init__(self, surface):
-        super().__init__(ssurface)
+        super().__init__(surface)
         self.holds = self.surface.getHolds()
         self.holds_idx = np.array(range(len(self.holds)))
         (self.surface_width, self.surface_height) = self.surface.getSizeSurface()
 
         self.current_step, self.next_step = None, None
-        self.__getNext()
+        self._getNext()
         
     def setRenderPreview(self, boolean):
         self.render_preview = boolean
 
-    def __checkInteraction(self, point, radious, std, rectangle):
+    def _checkInteraction(self, point, radious, std, rectangle):
         if std < self.min_hand_std:
             return algebra.overlapCircleRectangle(rectangle, point, radious)
         return 0
 
-    def __getNext(self):
+    def _getNext(self):
         if self.current_step is None:
             idx = choice(self.holds_idx)
             placement = choice([Placement.HAND_RIGHT, Placement.HAND_LEFT])
@@ -252,15 +254,15 @@ class RandomBoulderTrack(ClimbrTrack):
             hand_r, hand_l, std_hand_r, std_hand_l, hand_radious = self._getHands(keypoints)
             hold, placement = self.holds[self.current_step[0]], self.current_step[1]
             if placement == Placement.HAND_RIGHT:
-                overlap_hand_r = self.__checkInteraction(hand_r, hand_radious, std_hand_r, hold)
-                if (overlap_hand_r >= self.overlap_score): self.__getNext()
+                overlap_hand_r = self._checkInteraction(hand_r, hand_radious, std_hand_r, hold)
+                if (overlap_hand_r >= self.overlap_score): self._getNext()
             elif placement == Placement.HAND_LEFT:
-                overlap_hand_l = self.__checkInteraction(hand_l, hand_radious, std_hand_l, hold)
-                if (overlap_hand_l >= self.overlap_score): self.__getNext()
+                overlap_hand_l = self._checkInteraction(hand_l, hand_radious, std_hand_l, hold)
+                if (overlap_hand_l >= self.overlap_score): self._getNext()
             elif placement == Placement.HAND_MATCHING:
-                overlap_hand_r = self.__checkInteraction(hand_r, hand_radious, std_hand_r, hold)
-                overlap_hand_l = self.__checkInteraction(hand_l, hand_radious, std_hand_l, hold)
-                if (overlap_hand_r >= self.overlap_score) and (overlap_hand_l >= self.overlap_score): self.__getNext()
+                overlap_hand_r = self._checkInteraction(hand_r, hand_radious, std_hand_r, hold)
+                overlap_hand_l = self._checkInteraction(hand_l, hand_radious, std_hand_l, hold)
+                if (overlap_hand_r >= self.overlap_score) and (overlap_hand_l >= self.overlap_score): self._getNext()
 
         img = np.zeros(shape=(self.surface_height, self.surface_width, 3), dtype=np.uint8)
         hold, placement = self.holds[self.current_step[0]], self.current_step[1]

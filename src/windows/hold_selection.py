@@ -3,7 +3,7 @@ from PyQt6.QtCore import Qt, pyqtSignal, QRectF
 from PyQt6.QtGui import QPixmap, QPainter, QPen, QCursor
 
 import algebra
-from dialogs.generic import ImageWindow
+from windows.generic import ImageWindow
 
 class HoldSelectionWindow(ImageWindow):
     pen = QPen(Qt.GlobalColor.green, 2)
@@ -19,7 +19,7 @@ class HoldSelectionWindow(ImageWindow):
         self.setMouseTracking(True)
         self.label.setMouseTracking(True)
 
-    def __paintRectangles(self, canvas, rectangles):
+    def _paintRectangles(self, canvas, rectangles):
         painter = QPainter(canvas)
         painter.setPen(self.pen)
         for rec in rectangles: 
@@ -27,7 +27,7 @@ class HoldSelectionWindow(ImageWindow):
         painter.end()
         return canvas
 
-    def __isPointInsideAnyRectangle(self, point): 
+    def _isPointInsideAnyRectangle(self, point): 
         for p in self.stored_points: 
             if algebra.isPointInsideRectangle(point, p): return p
         return None
@@ -40,7 +40,7 @@ class HoldSelectionWindow(ImageWindow):
 
     def setPoints(self, points):
         self.stored_points = np.multiply(points, self.scaling).tolist()
-        self.__paintRectangles(self.overlay, self.stored_points)
+        self._paintRectangles(self.overlay, self.stored_points)
         self.updateOverlay(self.overlay)
 
     def updateOverlay(self, overlay):
@@ -54,7 +54,7 @@ class HoldSelectionWindow(ImageWindow):
     def mousePressEvent(self, event): 
         point = [event.position().x(), event.position().y()]
         if point[0] is None or point[1] is None: return
-        collision = self.__isPointInsideAnyRectangle(point)
+        collision = self._isPointInsideAnyRectangle(point)
 
         if event.button() == Qt.MouseButton.LeftButton:
             if not collision:
@@ -72,7 +72,7 @@ class HoldSelectionWindow(ImageWindow):
         if event.button() == Qt.MouseButton.RightButton and collision:
             self.stored_points.remove(collision)
             self.overlay.fill(Qt.GlobalColor.transparent)
-            self.__paintRectangles(self.overlay, self.stored_points)
+            self._paintRectangles(self.overlay, self.stored_points)
 
     def mouseMoveEvent(self, event):
         if self.drawing or self.moving:
@@ -89,7 +89,7 @@ class HoldSelectionWindow(ImageWindow):
                 self.moving_origin = point_b
 
             self.new_overlay = self.overlay.copy()
-            self.__paintRectangles(self.new_overlay, [[self.rect_origin[0], self.rect_origin[1], self.rect_w, self.rect_h]])
+            self._paintRectangles(self.new_overlay, [[self.rect_origin[0], self.rect_origin[1], self.rect_w, self.rect_h]])
             self.updateOverlay(self.new_overlay)
 
     def mouseReleaseEvent(self, event): 

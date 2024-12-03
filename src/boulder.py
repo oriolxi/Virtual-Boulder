@@ -25,10 +25,7 @@ class Boulder():
     # this means boulders are not tied to a particular set of holds
 
     def __init__(self):
-        self.clear()
         self.name = "default"
-
-    def clear(self):
         self.steps = list()
 
     def addStep(self, hold_idx, placement, idx=-1):
@@ -60,18 +57,6 @@ class Boulder():
 
         return len(self.steps) - 1 - idx, step
 
-    def getSteps(self):
-        return self.steps
-
-    def setSteps(self, s):
-        self.steps = s
-
-    def getName(self):
-        return self.name
-
-    def setName(self, n):
-        self.name = n
-
     def getNumSteps(self):
         return len(self.steps)
 
@@ -87,6 +72,15 @@ class Boulder():
         if self.current + 1 < len(self.steps):
             second = self.steps[self.current + 1]
         return first, second
+
+    def getSteps(self):
+        return self.steps
+
+    def getName(self):
+        return self.name
+
+    def setName(self, n):
+        self.name = n
 
 def renderBoulderPreview(boulder, hold_boundboxes, ref_img, draw_lines=False):
     # define color parametres

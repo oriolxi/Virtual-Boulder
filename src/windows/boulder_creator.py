@@ -3,7 +3,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 
 import util
 import algebra
-from dialogs.generic import ImageWindow
+from windows.generic import ImageWindow
 from boulder import Boulder, Placement, renderBoulderPreview
 
 class BoulderCreatorWindow(ImageWindow):
@@ -14,29 +14,35 @@ class BoulderCreatorWindow(ImageWindow):
         super().__init__(scrn, fs, img)
         self.holds = h
         self.boulder = b
-        self.__paintBoulder()
+        self.draw_lines = True
+        self._paintBoulder()
 
         self.setMouseTracking(True)
         self.label.setMouseTracking(True)
 
-    def __isPointInsideHold(self, point): 
+    def _isPointInsideHold(self, point): 
         for p in self.holds: 
             if algebra.isPointInsideRectangle(point, p): return p
         return None
 
-    def __paintBoulder(self):
+    def _paintBoulder(self):
         canvas = renderBoulderPreview(self.boulder, self.holds, self.image)
         canvas = canvas.scaled(self.screen_w, self.screen_h, Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation) #KeepAspectRatioByExpanding is also an option
         self.label.setPixmap(canvas)
 
         img_black = self.image.copy()
         img_black.fill(Qt.GlobalColor.transparent)
-        canvas_projection = renderBoulderPreview(self.boulder, self.holds, img_black, draw_lines=True)
+        canvas_projection = renderBoulderPreview(self.boulder, self.holds, img_black, draw_lines=self.draw_lines)
         self.signal_click.emit(util.CVimageFromQimage(canvas_projection.toImage()))
 
     def start(self):
         super(BoulderCreatorWindow, self).start()
-        self.__paintBoulder()
+        self._paintBoulder()
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_1: #key codes can be fund in https://doc.qt.io/qtforpython-5/PySide2/QtCore/Qt.html
+            self.draw_lines = not self.draw_lines
+            self._paintBoulder()
 
     def mousePressEvent(self, event):
         # get mouse click coordinates
@@ -48,7 +54,7 @@ class BoulderCreatorWindow(ImageWindow):
         point[1] = int(point[1] / self.scaling)
 
         # check if point falls inside of a hold
-        hold = self.__isPointInsideHold(point)
+        hold = self._isPointInsideHold(point)
         if hold is None: return
         hold_idx = self.holds.index(hold)
 
@@ -69,7 +75,7 @@ class BoulderCreatorWindow(ImageWindow):
             else:
                 self.boulder.addStep(hold_idx, Placement.HAND_RIGHT)
            
-        self.__paintBoulder()
+        self._paintBoulder()
 
     def mouseMoveEvent(self, event):
         pass

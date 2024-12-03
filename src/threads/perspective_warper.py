@@ -3,9 +3,6 @@ import numpy as np
 from PyQt6.QtCore import QThread, pyqtSignal
 
 class PerspectiveWarper(QThread):
-    homography = None
-    size = None
-
     signal_done = pyqtSignal(np.ndarray)
 
     def __init__(self, h, s):

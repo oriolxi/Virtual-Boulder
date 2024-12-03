@@ -1,7 +1,7 @@
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QPainter, QPen, QCursor
 
-from dialogs.generic import ImageWindow
+from windows.generic import ImageWindow
 
 class AreaSelectionWindow(ImageWindow):
     pen = QPen(Qt.GlobalColor.green, 2)

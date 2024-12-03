@@ -21,6 +21,7 @@ class InteractiveBoulderDialog(QDialog):
         self.boulders = boulder_list
         self.holds = holds_bboxes
         self.reference_img = util.QimageFromCVimage(ref_img)
+        self.draw_lines = True
         for boulder in self.boulders:
             item = QListWidgetItem(boulder.getName())
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
@@ -34,14 +35,14 @@ class InteractiveBoulderDialog(QDialog):
         if (idx < 0 or idx >= len(self.boulders)): 
             self.lst_boulder_list.setCurrentRow(0)
             idx = 0
-        img = renderBoulderPreview(self.boulders[idx], self.holds, self.reference_img, draw_lines=True)
+        img = renderBoulderPreview(self.boulders[idx], self.holds, self.reference_img, draw_lines=self.draw_lines)
         self.lbl_preview_boulder.setPixmap(img.scaled(self.lbl_preview_boulder.size().width(), self.lbl_preview_boulder.size().height(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         self.lbl_preview_boulder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.boulders[idx].setName(self.lst_boulder_list.currentItem().text())
 
         img_black = self.reference_img.copy()
         img_black.fill(Qt.GlobalColor.transparent)
-        canvas_projection = renderBoulderPreview(self.boulders[idx], self.holds, img_black, draw_lines=True)
+        canvas_projection = renderBoulderPreview(self.boulders[idx], self.holds, img_black, draw_lines=self.draw_lines)
         self.signal_click.emit(util.CVimageFromQimage(canvas_projection.toImage()))
 
         self.sbox_boulder_start.setRange(0, self.boulders[idx].getNumSteps() - 1)
